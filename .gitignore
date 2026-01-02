@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# nflfastR data (large CSV files)
+data/nflfastr/*.csv
+
+# OS files
+.DS_Store
+
+# Debug logs
+npm-debug.log*
+
+# Zip files (development artifacts)
+*.zip
