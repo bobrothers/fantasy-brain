@@ -37,6 +37,17 @@ interface EdgeAnalysis {
     travel: string;
     olInjury: string;
     betting: string;
+    defenseMatchup: string;
+    opposingDInjuries: string;
+    usageTrends: string;
+    contractIncentive: string;
+    revengeGame: string;
+    redZone: string;
+    homeAway: string;
+    primetime: string;
+    divisionRivalry: string;
+    restAdvantage: string;
+    indoorOutdoor: string;
   };
   overallImpact: number;
   recommendation: string;
