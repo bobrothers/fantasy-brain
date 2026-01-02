@@ -10,7 +10,25 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 - **CLI tool** for player analysis: `npm run analyze "Player Name"`
 - **15 edge detectors** integrated into single analysis
 - **5 data providers** connected (Sleeper, Weather, ESPN, Odds API, nflfastR)
+- **Trade Analyzer** at /trade - Dynasty and Redraft modes with ACCEPT/REJECT verdicts
+- **Waiver Wire Scanner** at /waivers - Real trending data from Sleeper API
 - **Week 18 2025** schedule and data
+
+### Features
+
+#### Trade Analyzer (/trade)
+- **Dynasty mode**: Age curves by position, injury history, situation stability
+- **Redraft mode**: Playoff schedule (Wks 15-17), availability, usage trends
+- Verdict system: ACCEPT / REJECT / SLIGHT EDGE / TOSS-UP
+- "Gun to head" recommendation for close calls
+- Position-specific valuations (RBs decline at 27, WRs peak 26-30)
+
+#### Waiver Wire Scanner (/waivers)
+- Real trending adds from Sleeper API (not fabricated roster %)
+- Edge scores from actual edge detector analysis
+- Position filters (QB/RB/WR/TE/ALL)
+- Hidden gems: High adds + positive edge score
+- Key factors extracted from real edge signals
 
 ### How to Run
 ```bash
@@ -77,10 +95,15 @@ npm run test-providers                   # Verify API connections
 ```
 /app
   /api/analyze/     # API route for player analysis
-  page.tsx          # Main UI
+  /api/trade/       # Trade analyzer API
+  /api/waivers/     # Waiver scanner API
+  /trade/           # Trade analyzer UI
+  /waivers/         # Waiver scanner UI
+  page.tsx          # Main UI (player analysis)
 /lib
   /providers/       # sleeper.ts, espn.ts, weather.ts, odds.ts, nflfastr.ts
   /edge/            # 15 edge detector modules
+  /trade/           # dynasty-value.ts, redraft-value.ts
   edge-detector.ts  # Main orchestrator
 /types/             # TypeScript interfaces
 /data/nflfastr/     # Cached CSV data (gitignored)

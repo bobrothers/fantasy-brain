@@ -1,63 +1,38 @@
 # TODO - Fantasy Brain
 
-## High Priority
+## Next Up
 
-### Data Quality Improvements
-- [ ] Replace hardcoded defense rankings with live ESPN/Yahoo fantasy data
-- [ ] Build home/away splits from nflfastR historical data (not sample)
-- [ ] Build primetime performance from nflfastR game times
-- [ ] Build indoor/outdoor splits from nflfastR stadium data
-- [ ] Expand revenge games database (currently ~5 players)
-- [ ] Expand contract incentives database
+### Multi-Player Trades
+- [ ] Support 2-for-1, 3-for-2 trades in trade analyzer
+- [ ] Sum values for trade packages
+- [ ] Show which side is giving up more
 
-### Schedule System
-- [ ] Dynamic schedule fetching (currently hardcoded Week 18 2025)
-- [ ] Support for playoff weeks
-- [ ] Bye week detection
-
-## Medium Priority
-
-### Roster Import
+### Roster Integration
 - [ ] Connect to Sleeper league by league ID
 - [ ] Import user's roster
-- [ ] "Analyze My Team" feature - batch analyze all roster players
+- [ ] "Analyze My Team" - batch analyze all roster players
 - [ ] Start/sit recommendations based on edge scores
 
-### UI Improvements
-- [ ] Add player search autocomplete
-- [ ] Show detailed signal breakdown on click
-- [ ] Compare mode in UI (side-by-side players)
+### Data Quality
+- [ ] Replace hardcoded defense rankings with live source
+- [ ] Build home/away splits from nflfastR historical data
+- [ ] Dynamic schedule fetching (currently hardcoded Week 18)
+- [ ] Expand revenge games database (currently ~5 players)
+
+## Future Ideas
+
+- [ ] Player search autocomplete in UI
 - [ ] Mobile responsive improvements
-
-### QB Support for Usage Trends
-- [ ] Track passing attempts trend
-- [ ] Track rushing attempts for mobile QBs
-- [ ] Air yards and depth of target trends
-
-## Low Priority / Future
-
-### Additional Edge Detectors
-- [ ] Snap count trends (requires play-by-play)
-- [ ] Target depth / air yards analysis
-- [ ] Red zone target share (true RZ data vs estimates)
-- [ ] Defensive coordinator tendencies
-
-### Database Integration
 - [ ] Supabase for caching API responses
-- [ ] User accounts for saved leagues
 - [ ] Historical edge accuracy tracking
-
-### Performance
-- [ ] Cache nflfastR data in memory (currently re-parses CSV)
-- [ ] Parallel edge detector execution
-- [ ] API response caching with TTL
+- [ ] Snap count trends (requires play-by-play)
 
 ## Completed
+
 - [x] 15 edge detectors implemented
-- [x] Web UI with Next.js
-- [x] Deployed to Vercel
-- [x] GitHub repo created
-- [x] nflfastR integration for usage trends
-- [x] Sleeper API for defensive injuries
-- [x] Odds API for betting signals
-- [x] Weather API integration
+- [x] Web UI deployed to Vercel
+- [x] Trade Analyzer with Dynasty/Redraft modes
+- [x] Waiver Wire Scanner with real Sleeper trending data
+- [x] ACCEPT/REJECT verdict system with "gun to head" recommendation
+- [x] Position-specific age curves (RB decline at 27, WR peak 26-30)
+- [x] Edge factors extracted from real signals (no fabricated data)
