@@ -48,12 +48,22 @@ interface AnalysisResult {
   };
 }
 
+interface RestingPlayer {
+  name: string;
+  team: string;
+  reason: string;
+  source?: string;
+}
+
 export default function Home() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState<Date | null>(null);
+  const [restingPlayers, setRestingPlayers] = useState<RestingPlayer[]>([]);
+  const [showRestingPanel, setShowRestingPanel] = useState(false);
+  const [restingLoading, setRestingLoading] = useState(false);
 
   // Live clock - only render on client to avoid hydration mismatch
   useEffect(() => {
@@ -61,6 +71,26 @@ export default function Home() {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch resting players on mount
+  useEffect(() => {
+    fetchRestingPlayers();
+  }, []);
+
+  const fetchRestingPlayers = async () => {
+    setRestingLoading(true);
+    try {
+      const res = await fetch('/api/resting');
+      if (res.ok) {
+        const data = await res.json();
+        setRestingPlayers(data.players || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch resting players:', err);
+    } finally {
+      setRestingLoading(false);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +160,16 @@ export default function Home() {
             <div className="h-4 w-px bg-zinc-700" />
             <span className="text-xs text-zinc-500 uppercase tracking-widest">Edge Detection System</span>
           </div>
-          <div className="flex items-center gap-6 text-xs">
+          <div className="flex items-center gap-4 text-xs">
+            {restingPlayers.length > 0 && (
+              <button
+                onClick={() => setShowRestingPanel(!showRestingPanel)}
+                className="flex items-center gap-2 px-3 py-1 bg-purple-950/50 border border-purple-700 text-purple-300 hover:bg-purple-900/50 transition-colors"
+              >
+                <span className="text-purple-400">⚠</span>
+                <span>{restingPlayers.length} Resting</span>
+              </button>
+            )}
             <div className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-zinc-500">LIVE</span>
@@ -161,6 +200,46 @@ export default function Home() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Resting Players Panel */}
+        {showRestingPanel && restingPlayers.length > 0 && (
+          <div className="mb-6 bg-purple-950/30 border border-purple-800 p-4 animate-fadeIn">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-purple-400 text-lg">⚠</span>
+                <span className="text-purple-300 font-bold uppercase tracking-wide text-sm">
+                  Week 18 Resting Players
+                </span>
+              </div>
+              <button
+                onClick={() => setShowRestingPanel(false)}
+                className="text-purple-400 hover:text-purple-300 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {restingPlayers.map((player, i) => (
+                <div
+                  key={i}
+                  className="bg-purple-950/50 px-3 py-2 text-sm"
+                >
+                  <div className="text-purple-200 font-medium">{player.name}</div>
+                  <div className="text-purple-400 text-xs">{player.team} • {player.reason.split(' - ')[0]}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 text-xs text-purple-500">
+              Sources: Coach press conferences, official injury reports •{' '}
+              <button
+                onClick={fetchRestingPlayers}
+                className="text-purple-400 hover:text-purple-300 underline"
+              >
+                {restingLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Search */}
         <form onSubmit={handleSearch} className="mb-8">
           <div className="relative group flex gap-2">
