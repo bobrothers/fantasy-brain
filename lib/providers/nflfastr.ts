@@ -103,14 +103,25 @@ interface TeamWeeklyStats {
   rzCarries: number;
 }
 
-// Cache for loaded data
+// Cache for loaded data (in-memory for serverless compatibility)
 let playerStatsCache: WeeklyPlayerStats[] | null = null;
 let teamStatsCache: Map<string, TeamWeeklyStats[]> | null = null;
+let csvDataCache: string | null = null;
+let cacheTimestamp: number | null = null;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in-memory cache
 
 /**
- * Ensure data directory exists
+ * Check if running in serverless environment (read-only filesystem)
+ */
+function isServerless(): boolean {
+  return process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined;
+}
+
+/**
+ * Ensure data directory exists (skip in serverless)
  */
 function ensureDataDir(): void {
+  if (isServerless()) return;
   const dataDir = getDataDir();
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -118,12 +129,36 @@ function ensureDataDir(): void {
 }
 
 /**
- * Download data file if not cached locally
+ * Download data file - uses memory cache in serverless, disk cache locally
  */
 async function downloadDataFile(url: string, filename: string): Promise<string> {
+  // In serverless, use in-memory cache
+  if (isServerless()) {
+    // Return cached data if fresh
+    if (csvDataCache && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_TTL_MS) {
+      return 'memory';
+    }
+
+    console.log(`Fetching ${filename} from nflverse (serverless mode)...`);
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'fantasy-brain/1.0' },
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+    }
+
+    csvDataCache = await response.text();
+    cacheTimestamp = Date.now();
+    console.log(`Fetched ${filename} (${(csvDataCache.length / 1024 / 1024).toFixed(2)} MB)`);
+    return 'memory';
+  }
+
+  // Local development: use disk cache
   ensureDataDir();
   const filepath = path.join(getDataDir(), filename);
-  
+
   // Check if we have a recent cached version (less than 24 hours old)
   if (fs.existsSync(filepath)) {
     const stats = fs.statSync(filepath);
@@ -132,9 +167,9 @@ async function downloadDataFile(url: string, filename: string): Promise<string> 
       return filepath;
     }
   }
-  
+
   console.log(`Downloading ${filename} from nflverse...`);
-  
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -142,15 +177,15 @@ async function downloadDataFile(url: string, filename: string): Promise<string> 
       },
       redirect: 'follow',
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
     }
-    
+
     const data = await response.text();
     fs.writeFileSync(filepath, data);
     console.log(`Downloaded ${filename} (${(data.length / 1024 / 1024).toFixed(2)} MB)`);
-    
+
     return filepath;
   } catch (error) {
     // If download fails but we have cached data, use it
@@ -215,6 +250,50 @@ function parseCSVLine(line: string): string[] {
 async function loadPlayerStats(): Promise<WeeklyPlayerStats[]> {
   if (playerStatsCache) return playerStatsCache;
 
+  // Serverless mode: fetch and use in-memory cache
+  if (isServerless()) {
+    try {
+      const filepath = await downloadDataFile(DATA_URLS.playerStats, 'player_stats.csv');
+
+      if (filepath === 'memory' && csvDataCache) {
+        const rows = parseCSV(csvDataCache);
+        const currentSeasonRows = rows.filter(row => {
+          const season = parseInt(row.season) || 0;
+          return season === CURRENT_SEASON;
+        });
+
+        console.log(`Loaded ${currentSeasonRows.length} player stat rows for ${CURRENT_SEASON} season (serverless)`);
+
+        playerStatsCache = currentSeasonRows.map(row => ({
+          playerId: row.player_id || row.gsis_id || '',
+          playerName: row.player_display_name || row.player_name || '',
+          position: row.position || row.position_group || '',
+          team: row.recent_team || row.team || '',
+          week: parseInt(row.week) || 0,
+          completions: parseFloat(row.completions) || 0,
+          attempts: parseFloat(row.attempts) || 0,
+          passingYards: parseFloat(row.passing_yards) || 0,
+          passingTds: parseFloat(row.passing_tds) || 0,
+          interceptions: parseFloat(row.interceptions) || 0,
+          carries: parseFloat(row.carries) || 0,
+          rushingYards: parseFloat(row.rushing_yards) || 0,
+          rushingTds: parseFloat(row.rushing_tds) || 0,
+          targets: parseFloat(row.targets) || 0,
+          receptions: parseFloat(row.receptions) || 0,
+          receivingYards: parseFloat(row.receiving_yards) || 0,
+          receivingTds: parseFloat(row.receiving_tds) || 0,
+          airYards: parseFloat(row.air_yards_share) || parseFloat(row.receiving_air_yards) || 0,
+          yardsAfterCatch: parseFloat(row.receiving_yards_after_catch) || 0,
+        }));
+        return playerStatsCache;
+      }
+    } catch (error) {
+      console.error('Failed to load player stats (serverless):', error);
+      return [];
+    }
+  }
+
+  // Local development: use disk cache
   const dataDir = getDataDir();
   const localCsv = path.join(dataDir, 'player_stats.csv');
 
@@ -262,7 +341,7 @@ async function loadPlayerStats(): Promise<WeeklyPlayerStats[]> {
     } catch {
       filepath = await downloadDataFile(DATA_URLS.playerStatsSeason, `player_stats_season_${CURRENT_SEASON}.csv`);
     }
-    
+
     const csvData = fs.readFileSync(filepath, 'utf-8');
     const rows = parseCSV(csvData);
     
