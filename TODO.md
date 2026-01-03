@@ -14,7 +14,7 @@
 - [ ] Start/sit recommendations based on edge scores
 
 ### Live Data Sources (Replace Hardcoded)
-- [ ] Defense rankings from FantasyPros or NFL.com API
+- [x] Defense rankings - NOW LIVE from Sleeper + ESPN ✅
 - [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
 
 ## Medium Priority

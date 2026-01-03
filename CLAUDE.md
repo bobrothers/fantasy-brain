@@ -64,7 +64,7 @@ npm run test-providers                   # Verify API connections
 | travel-rest | ESPN Schedule | ✅ Live |
 | ol-injury | ESPN API | ✅ Live |
 | betting-signals | Odds API | ✅ Live |
-| defense-vs-position | Hardcoded | ⚠️ Approximate |
+| defense-vs-position | **Sleeper + ESPN** | ✅ **LIVE** |
 | opposing-defense-injuries | Sleeper API | ✅ Live |
 | usage-trends | Sleeper weekly stats | ✅ Live |
 | contract-incentives | Manual | ⚠️ ~15 players |
@@ -92,13 +92,13 @@ npm run test-providers                   # Verify API connections
 | Positional scarcity | Manual tiers | ⚠️ ~11 players |
 
 ### Known Issues
-1. Defense rankings are approximate (not from live API)
-2. Home/away, indoor/outdoor splits use sample data
-3. Revenge games only has ~7 players hardcoded
-4. Dynasty trade metrics (injury history, situation, draft capital) limited to top ~25-35 players
+1. Home/away, indoor/outdoor splits use sample data
+2. Revenge games only has ~7 players hardcoded
+3. Dynasty trade metrics (injury history, situation, draft capital) limited to top ~25-35 players
    - Sleeper API lacks: historical injuries, draft round/pick, contract data
    - Would need: Pro-Football-Reference, Spotrac, OverTheCap
-5. Usage trends shows "N/A" for QBs (by design)
+4. Usage trends shows "N/A" for QBs (by design)
+5. Defense rankings calculation takes ~5-10 seconds on first load (cached for 1 hour after)
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
