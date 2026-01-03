@@ -58,6 +58,16 @@ interface RestingPlayer {
   source?: string;
 }
 
+interface GameScore {
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  status: 'scheduled' | 'in_progress' | 'final';
+  statusDetail: string;
+  slot?: string;
+}
+
 export default function Home() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,6 +77,7 @@ export default function Home() {
   const [restingPlayers, setRestingPlayers] = useState<RestingPlayer[]>([]);
   const [showRestingPanel, setShowRestingPanel] = useState(false);
   const [restingLoading, setRestingLoading] = useState(false);
+  const [games, setGames] = useState<GameScore[]>([]);
 
   // Live clock - only render on client to avoid hydration mismatch
   useEffect(() => {
@@ -78,6 +89,25 @@ export default function Home() {
   // Fetch resting players on mount
   useEffect(() => {
     fetchRestingPlayers();
+  }, []);
+
+  // Fetch live scores
+  useEffect(() => {
+    const fetchScores = async () => {
+      try {
+        const res = await fetch('/api/scores');
+        if (res.ok) {
+          const data = await res.json();
+          setGames(data.games || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch scores:', err);
+      }
+    };
+    fetchScores();
+    // Refresh every 30 seconds during games
+    const interval = setInterval(fetchScores, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchRestingPlayers = async () => {
@@ -189,18 +219,34 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Scrolling ticker */}
+        {/* Scrolling ticker - live scores */}
         <div className="bg-zinc-900 border-t border-zinc-800 overflow-hidden">
-          <div className="animate-marquee whitespace-nowrap py-1 text-xs">
-            <span className="text-amber-400 mx-4">▲ PHI -3.5</span>
-            <span className="text-zinc-500 mx-4">BAL @ PIT • SNF</span>
-            <span className="text-emerald-400 mx-4">▲ DET implied 28.5</span>
-            <span className="text-zinc-500 mx-4">Weather: CHI snow expected</span>
-            <span className="text-red-400 mx-4">▼ MIA Tua Q</span>
-            <span className="text-zinc-500 mx-4">Line movement: KC -4 → -6</span>
-            <span className="text-amber-400 mx-4">▲ PHI -3.5</span>
-            <span className="text-zinc-500 mx-4">BAL @ PIT • SNF</span>
-            <span className="text-emerald-400 mx-4">▲ DET implied 28.5</span>
+          <div className="flex animate-ticker">
+            {/* Render games twice for seamless loop */}
+            {[...games, ...games].map((game, i) => (
+              <div key={i} className="flex-shrink-0 px-4 py-1 text-xs whitespace-nowrap">
+                {game.status === 'final' ? (
+                  <span className="text-zinc-400">
+                    {game.awayTeam} {game.awayScore} - {game.homeTeam} {game.homeScore}{' '}
+                    <span className="text-zinc-600">FINAL</span>
+                  </span>
+                ) : game.status === 'in_progress' ? (
+                  <span className="text-emerald-400">
+                    {game.awayTeam} {game.awayScore} - {game.homeTeam} {game.homeScore}{' '}
+                    <span className="text-emerald-600">{game.statusDetail}</span>
+                  </span>
+                ) : (
+                  <span className="text-zinc-500">
+                    {game.awayTeam} @ {game.homeTeam}{' '}
+                    <span className="text-zinc-600">{game.slot || game.statusDetail}</span>
+                  </span>
+                )}
+              </div>
+            ))}
+            {/* Fallback if no games */}
+            {games.length === 0 && (
+              <span className="px-4 py-1 text-xs text-zinc-600">Loading scores...</span>
+            )}
           </div>
         </div>
       </header>
@@ -470,12 +516,13 @@ export default function Home() {
       </footer>
 
       <style jsx>{`
-        @keyframes marquee {
+        @keyframes ticker {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-        .animate-marquee {
-          animation: marquee 20s linear infinite;
+        .animate-ticker {
+          animation: ticker 30s linear infinite;
+          width: max-content;
         }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
