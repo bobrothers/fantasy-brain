@@ -3,9 +3,9 @@
 ## High Priority
 
 ### Multi-Player Trades
-- [ ] Support 2-for-1, 3-for-2 trades in trade analyzer
-- [ ] Sum values for trade packages
-- [ ] Show which side is giving up more
+- [x] Support 2-for-1, 3-for-2 trades in trade analyzer ✅
+- [x] Sum values for trade packages ✅
+- [x] Show which side is giving up more ✅
 
 ### Roster Integration
 - [ ] Connect to Sleeper league by league ID
@@ -49,6 +49,7 @@
 - [x] **Draft Pick Value Converter** - Add picks to dynasty trades
   - Picks 2026-2028, rounds 1-4, early/mid/late positions
   - Shows player equivalents: "2026 Mid 1st ≈ Mid WR2/RB2"
+  - Prominent value display with large point score when selecting picks
   - Future picks discounted (8-30% for uncertainty)
   - Multi-asset trades: player + picks combos with value breakdown
 - [x] **Coverage matchup edge** - man vs zone analysis from Sharp Football data

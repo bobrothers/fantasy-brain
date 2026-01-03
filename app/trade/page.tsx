@@ -94,8 +94,10 @@ interface TradeResult {
 }
 
 export default function TradePage() {
-  const [player1, setPlayer1] = useState('');
-  const [player2, setPlayer2] = useState('');
+  const [players1, setPlayers1] = useState<string[]>([]);
+  const [players2, setPlayers2] = useState<string[]>([]);
+  const [newPlayer1, setNewPlayer1] = useState('');
+  const [newPlayer2, setNewPlayer2] = useState('');
   const [picks1, setPicks1] = useState<DraftPick[]>([]);
   const [picks2, setPicks2] = useState<DraftPick[]>([]);
   const [mode, setMode] = useState<TradeMode>('dynasty');
@@ -110,11 +112,33 @@ export default function TradePage() {
     return () => clearInterval(timer);
   }, []);
 
+  const addPlayer1 = () => {
+    if (newPlayer1.trim() && players1.length < 4) {
+      setPlayers1([...players1, newPlayer1.trim()]);
+      setNewPlayer1('');
+    }
+  };
+
+  const addPlayer2 = () => {
+    if (newPlayer2.trim() && players2.length < 4) {
+      setPlayers2([...players2, newPlayer2.trim()]);
+      setNewPlayer2('');
+    }
+  };
+
+  const removePlayer1 = (index: number) => {
+    setPlayers1(players1.filter((_, i) => i !== index));
+  };
+
+  const removePlayer2 = (index: number) => {
+    setPlayers2(players2.filter((_, i) => i !== index));
+  };
+
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     // Need at least one asset on each side (player or picks)
-    const hasSide1 = player1.trim() || picks1.length > 0;
-    const hasSide2 = player2.trim() || picks2.length > 0;
+    const hasSide1 = players1.length > 0 || picks1.length > 0;
+    const hasSide2 = players2.length > 0 || picks2.length > 0;
     if (!hasSide1 || !hasSide2) return;
 
     setLoading(true);
@@ -123,8 +147,8 @@ export default function TradePage() {
     try {
       // Build query params
       const params = new URLSearchParams();
-      if (player1.trim()) params.set('player1', player1);
-      if (player2.trim()) params.set('player2', player2);
+      if (players1.length > 0) params.set('players1', JSON.stringify(players1));
+      if (players2.length > 0) params.set('players2', JSON.stringify(players2));
       if (picks1.length > 0) params.set('picks1', JSON.stringify(picks1));
       if (picks2.length > 0) params.set('picks2', JSON.stringify(picks2));
       params.set('mode', mode);
@@ -147,14 +171,14 @@ export default function TradePage() {
   // Re-analyze when mode changes (if we have a result)
   const handleModeChange = async (newMode: TradeMode) => {
     setMode(newMode);
-    const hasSide1 = player1.trim() || picks1.length > 0;
-    const hasSide2 = player2.trim() || picks2.length > 0;
+    const hasSide1 = players1.length > 0 || picks1.length > 0;
+    const hasSide2 = players2.length > 0 || picks2.length > 0;
     if (result && hasSide1 && hasSide2) {
       setLoading(true);
       try {
         const params = new URLSearchParams();
-        if (player1.trim()) params.set('player1', player1);
-        if (player2.trim()) params.set('player2', player2);
+        if (players1.length > 0) params.set('players1', JSON.stringify(players1));
+        if (players2.length > 0) params.set('players2', JSON.stringify(players2));
         if (picks1.length > 0) params.set('picks1', JSON.stringify(picks1));
         if (picks2.length > 0) params.set('picks2', JSON.stringify(picks2));
         params.set('mode', newMode);
@@ -283,16 +307,58 @@ export default function TradePage() {
         {/* Input form */}
         <form onSubmit={handleAnalyze} className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Side 1 - Getting */}
             <div className="bg-zinc-900/50 border border-emerald-900/30 p-4">
               <label className="block text-xs text-emerald-400 uppercase tracking-wider mb-2">
                 You&apos;re Getting
               </label>
-              <PlayerAutocomplete
-                value={player1}
-                onChange={setPlayer1}
-                placeholder="Add player (optional)"
-                inputClassName="border-emerald-700/50 focus:border-emerald-400"
-              />
+
+              {/* Added players */}
+              {players1.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {players1.map((name, i) => (
+                    <div key={i} className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-950/50 border border-emerald-700/50 text-emerald-300">
+                      <span className="text-sm">{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removePlayer1(i)}
+                        className="text-emerald-500 hover:text-red-400"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add player input */}
+              {players1.length < 4 && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <PlayerAutocomplete
+                      value={newPlayer1}
+                      onChange={setNewPlayer1}
+                      placeholder="Search player..."
+                      inputClassName="border-emerald-700/50 focus:border-emerald-400"
+                      onSelect={(player) => {
+                        if (players1.length < 4) {
+                          setPlayers1([...players1, player.name]);
+                          setNewPlayer1('');
+                        }
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addPlayer1}
+                    disabled={!newPlayer1.trim()}
+                    className="px-3 py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-30 text-sm"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+
               {mode === 'dynasty' && (
                 <PickSelector
                   picks={picks1}
@@ -302,16 +368,59 @@ export default function TradePage() {
                 />
               )}
             </div>
+
+            {/* Side 2 - Giving Up */}
             <div className="bg-zinc-900/50 border border-amber-900/30 p-4">
               <label className="block text-xs text-amber-400 uppercase tracking-wider mb-2">
                 You&apos;re Giving Up
               </label>
-              <PlayerAutocomplete
-                value={player2}
-                onChange={setPlayer2}
-                placeholder="Add player (optional)"
-                inputClassName="border-amber-700/50 focus:border-amber-400"
-              />
+
+              {/* Added players */}
+              {players2.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {players2.map((name, i) => (
+                    <div key={i} className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-950/50 border border-amber-700/50 text-amber-300">
+                      <span className="text-sm">{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removePlayer2(i)}
+                        className="text-amber-500 hover:text-red-400"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add player input */}
+              {players2.length < 4 && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <PlayerAutocomplete
+                      value={newPlayer2}
+                      onChange={setNewPlayer2}
+                      placeholder="Search player..."
+                      inputClassName="border-amber-700/50 focus:border-amber-400"
+                      onSelect={(player) => {
+                        if (players2.length < 4) {
+                          setPlayers2([...players2, player.name]);
+                          setNewPlayer2('');
+                        }
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addPlayer2}
+                    disabled={!newPlayer2.trim()}
+                    className="px-3 py-2 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-30 text-sm"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+
               {mode === 'dynasty' && (
                 <PickSelector
                   picks={picks2}
@@ -324,7 +433,7 @@ export default function TradePage() {
           </div>
           <button
             type="submit"
-            disabled={loading || (!player1.trim() && picks1.length === 0) || (!player2.trim() && picks2.length === 0)}
+            disabled={loading || (players1.length === 0 && picks1.length === 0) || (players2.length === 0 && picks2.length === 0)}
             className="w-full bg-amber-400 text-zinc-900 px-6 py-3 text-sm font-bold tracking-wider hover:bg-amber-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'ANALYZING...' : 'ANALYZE TRADE'}

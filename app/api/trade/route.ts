@@ -46,27 +46,39 @@ interface TradeAnalysis {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
+  // Support both single player (player1) and multiple (players1)
   const player1Name = searchParams.get('player1');
   const player2Name = searchParams.get('player2');
+  const players1Str = searchParams.get('players1');
+  const players2Str = searchParams.get('players2');
   const picks1Str = searchParams.get('picks1');
   const picks2Str = searchParams.get('picks2');
   const mode = (searchParams.get('mode') || 'dynasty') as TradeMode;
 
-  // Parse picks
+  // Parse players and picks
+  let playerNames1: string[] = [];
+  let playerNames2: string[] = [];
   let picks1: DraftPick[] = [];
   let picks2: DraftPick[] = [];
   try {
+    // Support both single player and array of players
+    if (players1Str) playerNames1 = JSON.parse(players1Str);
+    else if (player1Name) playerNames1 = [player1Name];
+
+    if (players2Str) playerNames2 = JSON.parse(players2Str);
+    else if (player2Name) playerNames2 = [player2Name];
+
     if (picks1Str) picks1 = JSON.parse(picks1Str);
     if (picks2Str) picks2 = JSON.parse(picks2Str);
   } catch {
-    return NextResponse.json({ error: 'Invalid picks format' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid format' }, { status: 400 });
   }
 
   // Need at least one asset on each side
-  if (!player1Name && picks1.length === 0) {
+  if (playerNames1.length === 0 && picks1.length === 0) {
     return NextResponse.json({ error: 'Side 1 needs at least one player or pick' }, { status: 400 });
   }
-  if (!player2Name && picks2.length === 0) {
+  if (playerNames2.length === 0 && picks2.length === 0) {
     return NextResponse.json({ error: 'Side 2 needs at least one player or pick' }, { status: 400 });
   }
 
@@ -81,22 +93,22 @@ export async function GET(request: NextRequest) {
       totalRedraftValue: 0,
     };
 
-    if (player1Name) {
-      let player1 = players.get(player1Name);
-      if (!player1) {
-        const searchName1 = player1Name.toLowerCase();
-        player1 = Array.from(players.values()).find(p =>
-          p.name.toLowerCase().includes(searchName1)
+    for (const playerName of playerNames1) {
+      let player = players.get(playerName);
+      if (!player) {
+        const searchName = playerName.toLowerCase();
+        player = Array.from(players.values()).find(p =>
+          p.name.toLowerCase().includes(searchName)
         );
       }
-      if (!player1) {
-        return NextResponse.json({ error: `Player not found: ${player1Name}` }, { status: 404 });
+      if (!player) {
+        return NextResponse.json({ error: `Player not found: ${playerName}` }, { status: 404 });
       }
-      const dynasty1 = calculateDynastyValue(player1);
-      const redraft1 = await calculateRedraftValue(player1);
-      side1.players.push({ name: player1.name, dynasty: dynasty1, redraft: redraft1 });
-      side1.totalDynastyValue += dynasty1.overallScore;
-      side1.totalRedraftValue += redraft1.overallScore;
+      const dynasty = calculateDynastyValue(player);
+      const redraft = await calculateRedraftValue(player);
+      side1.players.push({ name: player.name, dynasty, redraft });
+      side1.totalDynastyValue += dynasty.overallScore;
+      side1.totalRedraftValue += redraft.overallScore;
     }
 
     for (const pick of picks1) {
@@ -114,22 +126,22 @@ export async function GET(request: NextRequest) {
       totalRedraftValue: 0,
     };
 
-    if (player2Name) {
-      let player2 = players.get(player2Name);
-      if (!player2) {
-        const searchName2 = player2Name.toLowerCase();
-        player2 = Array.from(players.values()).find(p =>
-          p.name.toLowerCase().includes(searchName2)
+    for (const playerName of playerNames2) {
+      let player = players.get(playerName);
+      if (!player) {
+        const searchName = playerName.toLowerCase();
+        player = Array.from(players.values()).find(p =>
+          p.name.toLowerCase().includes(searchName)
         );
       }
-      if (!player2) {
-        return NextResponse.json({ error: `Player not found: ${player2Name}` }, { status: 404 });
+      if (!player) {
+        return NextResponse.json({ error: `Player not found: ${playerName}` }, { status: 404 });
       }
-      const dynasty2 = calculateDynastyValue(player2);
-      const redraft2 = await calculateRedraftValue(player2);
-      side2.players.push({ name: player2.name, dynasty: dynasty2, redraft: redraft2 });
-      side2.totalDynastyValue += dynasty2.overallScore;
-      side2.totalRedraftValue += redraft2.overallScore;
+      const dynasty = calculateDynastyValue(player);
+      const redraft = await calculateRedraftValue(player);
+      side2.players.push({ name: player.name, dynasty, redraft });
+      side2.totalDynastyValue += dynasty.overallScore;
+      side2.totalRedraftValue += redraft.overallScore;
     }
 
     for (const pick of picks2) {
