@@ -36,7 +36,9 @@
       "Bash(lsof:*)",
       "WebSearch",
       "Bash(for week in 10 11 12 13 14 15 16 17)",
-      "Bash(do echo \"Week $week:\" curl -s \"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=$week&dates=2025\")"
+      "Bash(do echo \"Week $week:\" curl -s \"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=$week&dates=2025\")",
+      "WebFetch(domain:nflreadr.nflverse.com)",
+      "WebFetch(domain:www.sharpfootballanalysis.com)"
     ]
   }
 }

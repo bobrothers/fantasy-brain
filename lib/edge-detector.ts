@@ -24,6 +24,7 @@ import { detectPrimetimeEdge } from './edge/primetime-performance';
 import { detectDivisionRivalryEdge } from './edge/division-rivalry';
 import { detectRestAdvantageEdge } from './edge/rest-advantage';
 import { detectIndoorOutdoorEdge } from './edge/indoor-outdoor-splits';
+import { detectCoverageMatchupEdge } from './edge/coverage-matchup';
 
 const SYMBOLS = {
   positive: '✓',
@@ -51,6 +52,7 @@ interface EdgeAnalysis {
     divisionRivalry: string;
     restAdvantage: string;
     indoorOutdoor: string;
+    coverageMatchup: string;
   };
   overallImpact: number;
   recommendation: string;
@@ -112,6 +114,7 @@ export async function analyzePlayer(
     divisionRivalry: '',
     restAdvantage: '',
     indoorOutdoor: '',
+    coverageMatchup: '',
   };
 
   // Use date from schedule (or fallback to current time)
@@ -226,6 +229,12 @@ export async function analyzePlayer(
   );
   allSignals.push(...indoorResult.signals);
   summaries.indoorOutdoor = indoorResult.summary;
+
+  // 16. Coverage Matchup (man vs zone)
+  console.log('  Checking coverage matchup...');
+  const coverageResult = detectCoverageMatchupEdge(player, gameInfo.opponent, targetWeek);
+  allSignals.push(...coverageResult.signals);
+  summaries.coverageMatchup = coverageResult.summary;
 
   const overallImpact = allSignals.reduce((sum, signal) => {
     const weight = signal.confidence / 100;
@@ -379,6 +388,10 @@ export function printAnalysis(analysis: EdgeAnalysis): void {
   const indoorSig = signals.find(s => s.type === 'indoor_outdoor_split');
   const indoorSymbol = indoorSig ? SYMBOLS[indoorSig.impact] : SYMBOLS.neutral;
   console.log('  ' + indoorSymbol + ' Venue: ' + (summary as any).indoorOutdoor);
+
+  const coverageSig = signals.find(s => s.type === 'coverage_matchup');
+  const coverageSymbol = coverageSig ? SYMBOLS[coverageSig.impact] : SYMBOLS.neutral;
+  console.log('  ' + coverageSymbol + ' Coverage: ' + (summary as any).coverageMatchup);
 
   const impactStr = overallImpact > 0 ? '+' + overallImpact : String(overallImpact);
   console.log('\n📈 OVERALL IMPACT: ' + impactStr);
