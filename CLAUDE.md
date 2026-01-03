@@ -32,6 +32,10 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
   - Core: Age curves by position, injury history, situation stability
   - Draft capital (1st rounders get bonus), Breakout age (early = longer prime)
   - Offensive ranking (elite offenses boost value), Depth chart threat
+  - **Draft pick values**: Add picks to trades (2026-2028, rounds 1-4)
+    - Shows player equivalent: "2026 Mid 1st ≈ Mid WR2/RB2 (72 pts)"
+    - Future picks discounted for uncertainty
+    - Multi-asset trades with value breakdown
 - **Redraft mode**:
   - Core: Playoff schedule (Wks 15-17), availability, usage trends
   - **Hot/cold streak** - LIVE from Sleeper weekly stats (last 4 games PPG)

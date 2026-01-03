@@ -46,6 +46,11 @@
 ## Completed (January 2026)
 
 ### This Session
+- [x] **Draft Pick Value Converter** - Add picks to dynasty trades
+  - Picks 2026-2028, rounds 1-4, early/mid/late positions
+  - Shows player equivalents: "2026 Mid 1st ≈ Mid WR2/RB2"
+  - Future picks discounted (8-30% for uncertainty)
+  - Multi-asset trades: player + picks combos with value breakdown
 - [x] **Coverage matchup edge** - man vs zone analysis from Sharp Football data
   - Defense tendencies (man% vs zone%) for all 32 teams
   - ~40 WRs/TEs tagged as man-beaters or zone-beaters
