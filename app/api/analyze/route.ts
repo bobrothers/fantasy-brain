@@ -93,6 +93,10 @@ export async function GET(request: NextRequest) {
           summary: result.summary.indoorOutdoor,
           signals: getSignalsForType('indoor_outdoor'),
         },
+        coverage: {
+          summary: result.summary.coverageMatchup,
+          signals: getSignalsForType('coverage'),
+        },
       },
       overall: {
         impact: restingInfo ? -10 : result.overallImpact,

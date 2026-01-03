@@ -43,6 +43,7 @@ interface AnalysisResult {
     division: { summary: string; signals: EdgeSignal[] };
     rest: { summary: string; signals: EdgeSignal[] };
     venue: { summary: string; signals: EdgeSignal[] };
+    coverage: { summary: string; signals: EdgeSignal[] };
   };
   overall: {
     impact: number;
