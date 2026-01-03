@@ -156,9 +156,9 @@ export async function analyzePlayer(
   allSignals.push(...playerBettingSignals);
   summaries.betting = bettingResult.summary;
 
-  // 5. Defense vs Position matchup
+  // 5. Defense vs Position matchup (NOW LIVE from Sleeper + ESPN)
   console.log('  Checking defense matchup...');
-  const defMatchupResult = detectDefenseMatchupEdge(player, gameInfo.opponent, targetWeek);
+  const defMatchupResult = await detectDefenseMatchupEdge(player, gameInfo.opponent, targetWeek);
   allSignals.push(...defMatchupResult.signals);
   summaries.defenseMatchup = defMatchupResult.summary;
 
