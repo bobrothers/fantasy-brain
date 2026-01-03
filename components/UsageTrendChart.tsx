@@ -136,9 +136,6 @@ export default function UsageTrendChart({ playerName, position }: Props) {
           <span className="text-xs text-zinc-500 uppercase tracking-wider">
             Usage Trend
           </span>
-          <span className="text-[10px] bg-amber-900/50 text-amber-400 px-1.5 py-0.5 rounded">
-            2024 DATA
-          </span>
           {data.teamRank && (
             <span className="text-xs bg-zinc-800 px-2 py-0.5 text-amber-400">
               {getRankText()}

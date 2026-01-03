@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { nflfastr } from '@/lib/providers/nflfastr';
+import sleeper from '@/lib/providers/sleeper';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const trendData = await nflfastr.getUsageTrend(player, weeks);
+    // Use Sleeper API for live 2025 season data
+    const trendData = await sleeper.getUsageTrend(player, weeks);
 
     if (!trendData) {
       return NextResponse.json({
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get team rank
-    const teamRankData = await nflfastr.getTeamRank(player, trendData.position);
+    const teamRankData = await sleeper.getTeamRank(player, trendData.position);
 
     return NextResponse.json({
       player,

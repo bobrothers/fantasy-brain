@@ -395,6 +395,272 @@ export const sleeper = {
     
     return injuredDefenders;
   },
+
+  /**
+   * Get weekly stats for all players for a specific week
+   */
+  async getWeeklyStats(season: number, week: number): Promise<Map<string, {
+    targets?: number;
+    receptions?: number;
+    recYards?: number;
+    carries?: number;
+    rushYards?: number;
+    team?: string;
+  }>> {
+    const url = `${BASE_URL}/stats/nfl/regular/${season}/${week}`;
+    const raw = await fetchWithCache<Record<string, Record<string, number>>>(url, 60 * 60 * 1000); // 1hr cache
+
+    const stats = new Map<string, {
+      targets?: number;
+      receptions?: number;
+      recYards?: number;
+      carries?: number;
+      rushYards?: number;
+      team?: string;
+    }>();
+
+    for (const [playerId, playerStats] of Object.entries(raw)) {
+      if (playerStats.rec_tgt || playerStats.rush_att) {
+        stats.set(playerId, {
+          targets: playerStats.rec_tgt,
+          receptions: playerStats.rec,
+          recYards: playerStats.rec_yd,
+          carries: playerStats.rush_att,
+          rushYards: playerStats.rush_yd,
+        });
+      }
+    }
+
+    return stats;
+  },
+
+  /**
+   * Get usage trend data for a player (last 6 weeks)
+   */
+  async getUsageTrend(playerName: string, numWeeks: number = 6): Promise<{
+    position: string;
+    team: string;
+    weeks: Array<{
+      week: number;
+      targetShare?: number;
+      carryShare?: number;
+      targets?: number;
+      carries?: number;
+    }>;
+    avgTargetShare?: number;
+    avgCarryShare?: number;
+    targetTrend?: 'up' | 'down' | 'stable';
+    carryTrend?: 'up' | 'down' | 'stable';
+    trendChange?: number;
+  } | null> {
+    // Get player info
+    const player = await this.getPlayerByName(playerName);
+    if (!player || !player.team) return null;
+
+    const position = player.position;
+    const team = player.team;
+    const playerId = player.id;
+
+    // Get all players to find teammates
+    const allPlayers = await this.getAllPlayers();
+    const teammates = new Map<string, Player>();
+    for (const [id, p] of allPlayers) {
+      if (p.team === team) {
+        teammates.set(id, p);
+      }
+    }
+
+    // Determine current week (approximate based on date)
+    const now = new Date();
+    const seasonStart = new Date(2025, 8, 4); // Sept 4, 2025 (Week 1)
+    const daysSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (1000 * 60 * 60 * 24));
+    const currentWeek = Math.min(18, Math.max(1, Math.floor(daysSinceStart / 7) + 1));
+
+    // Fetch stats for recent weeks
+    const weeks: Array<{
+      week: number;
+      targetShare?: number;
+      carryShare?: number;
+      targets?: number;
+      carries?: number;
+    }> = [];
+
+    const targetShares: number[] = [];
+    const carryShares: number[] = [];
+
+    const startWeek = Math.max(1, currentWeek - numWeeks + 1);
+
+    for (let week = startWeek; week <= currentWeek; week++) {
+      try {
+        const weekStats = await this.getWeeklyStats(2025, week);
+        const playerWeekStats = weekStats.get(playerId);
+
+        if (!playerWeekStats) continue;
+
+        // Calculate team totals for this week
+        let teamTargets = 0;
+        let teamCarries = 0;
+
+        for (const [id, p] of teammates) {
+          const stats = weekStats.get(id);
+          if (stats) {
+            teamTargets += stats.targets || 0;
+            teamCarries += stats.carries || 0;
+          }
+        }
+
+        const weekData: typeof weeks[0] = { week };
+
+        if (playerWeekStats.targets && teamTargets > 0) {
+          const share = (playerWeekStats.targets / teamTargets) * 100;
+          weekData.targetShare = Math.round(share * 10) / 10;
+          weekData.targets = playerWeekStats.targets;
+          targetShares.push(share);
+        }
+
+        if (playerWeekStats.carries && teamCarries > 0) {
+          const share = (playerWeekStats.carries / teamCarries) * 100;
+          weekData.carryShare = Math.round(share * 10) / 10;
+          weekData.carries = playerWeekStats.carries;
+          carryShares.push(share);
+        }
+
+        if (weekData.targets || weekData.carries) {
+          weeks.push(weekData);
+        }
+      } catch (e) {
+        // Week data not available, skip
+        continue;
+      }
+    }
+
+    if (weeks.length < 2) return null;
+
+    // Calculate averages
+    const avgTargetShare = targetShares.length > 0
+      ? Math.round((targetShares.reduce((a, b) => a + b, 0) / targetShares.length) * 10) / 10
+      : undefined;
+
+    const avgCarryShare = carryShares.length > 0
+      ? Math.round((carryShares.reduce((a, b) => a + b, 0) / carryShares.length) * 10) / 10
+      : undefined;
+
+    // Calculate trends
+    let targetTrend: 'up' | 'down' | 'stable' | undefined;
+    let carryTrend: 'up' | 'down' | 'stable' | undefined;
+    let trendChange: number | undefined;
+
+    if (targetShares.length >= 2) {
+      const firstHalf = targetShares.slice(0, Math.floor(targetShares.length / 2));
+      const secondHalf = targetShares.slice(Math.floor(targetShares.length / 2));
+      const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+
+      if (secondAvg > firstAvg * 1.15) targetTrend = 'up';
+      else if (secondAvg < firstAvg * 0.85) targetTrend = 'down';
+      else targetTrend = 'stable';
+
+      trendChange = Math.round((secondAvg - firstAvg) * 10) / 10;
+    }
+
+    if (carryShares.length >= 2) {
+      const firstHalf = carryShares.slice(0, Math.floor(carryShares.length / 2));
+      const secondHalf = carryShares.slice(Math.floor(carryShares.length / 2));
+      const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+
+      if (secondAvg > firstAvg * 1.15) carryTrend = 'up';
+      else if (secondAvg < firstAvg * 0.85) carryTrend = 'down';
+      else carryTrend = 'stable';
+
+      if (position === 'RB') {
+        trendChange = Math.round((secondAvg - firstAvg) * 10) / 10;
+      }
+    }
+
+    return {
+      position,
+      team,
+      weeks,
+      avgTargetShare,
+      avgCarryShare,
+      targetTrend,
+      carryTrend,
+      trendChange,
+    };
+  },
+
+  /**
+   * Get player's rank on team for targets/carries
+   */
+  async getTeamRank(playerName: string, position: string): Promise<{ rank: number; total: number } | null> {
+    const player = await this.getPlayerByName(playerName);
+    if (!player || !player.team) return null;
+
+    const team = player.team;
+    const playerId = player.id;
+
+    // Get current week
+    const now = new Date();
+    const seasonStart = new Date(2025, 8, 4);
+    const daysSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (1000 * 60 * 60 * 24));
+    const currentWeek = Math.min(18, Math.max(1, Math.floor(daysSinceStart / 7) + 1));
+
+    // Get all players
+    const allPlayers = await this.getAllPlayers();
+
+    // Aggregate stats over last 3 weeks
+    const playerUsage = new Map<string, { total: number; games: number; name: string; pos: string }>();
+
+    for (let week = Math.max(1, currentWeek - 2); week <= currentWeek; week++) {
+      try {
+        const weekStats = await this.getWeeklyStats(2025, week);
+
+        for (const [id, stats] of weekStats) {
+          const p = allPlayers.get(id);
+          if (!p || p.team !== team) continue;
+
+          // For RBs use carries, for WR/TE use targets
+          const usage = position === 'RB' ? (stats.carries || 0) : (stats.targets || 0);
+          if (usage === 0) continue;
+
+          // Only compare within position group
+          const isReceiver = ['WR', 'TE'].includes(p.position);
+          const playerIsReceiver = ['WR', 'TE'].includes(position);
+          const isRB = p.position === 'RB';
+          const playerIsRB = position === 'RB';
+
+          if ((playerIsReceiver && !isReceiver) || (playerIsRB && !isRB)) continue;
+
+          const current = playerUsage.get(id) || { total: 0, games: 0, name: p.name, pos: p.position };
+          playerUsage.set(id, {
+            total: current.total + usage,
+            games: current.games + 1,
+            name: p.name,
+            pos: p.position,
+          });
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    // Rank by average usage
+    const rankings = Array.from(playerUsage.entries())
+      .map(([id, data]) => ({
+        id,
+        avgUsage: data.total / data.games,
+      }))
+      .sort((a, b) => b.avgUsage - a.avgUsage);
+
+    const playerRank = rankings.findIndex(r => r.id === playerId);
+    if (playerRank === -1) return null;
+
+    return {
+      rank: playerRank + 1,
+      total: rankings.length,
+    };
+  },
 };
 
 export default sleeper;
