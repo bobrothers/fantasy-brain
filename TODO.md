@@ -46,6 +46,27 @@
 ## Completed (January 2026)
 
 ### This Session
+- [x] **Sell Window Alerts** - Flag players approaching decline window
+  - Position-specific age cliffs (RB at 27, WR at 30, TE at 31, QB at 36)
+  - Urgency levels: SELL NOW, SELL SOON, HOLD, BUY LOW, BUY NOW
+  - Injury history accelerates sell window
+  - Contract year and situation factors
+  - Elite years remaining calculation
+  - Action advice for each player
+- [x] **Consolidation Analyzer** - "3 nickels ≠ 1 dollar" trade warnings
+  - Detects multi-for-one trades automatically
+  - Premium calculations: 2-for-1 = 15%, 3-for-1 = 25%, 4-for-1 = 35%
+  - Warning displayed in trade verdict
+  - Recommendation for adjusting offers
+- [x] **Team Diagnosis** - Dynasty roster evaluation tool
+  - Enter roster players for classification
+  - Classifications: CONTENDER, REBUILD, STUCK IN THE MIDDLE
+  - Position group strength ratings
+  - Key metrics: elite assets, young assets, aging assets
+  - Strategic recommendations with moves, targets, sells, holds
+  - Strengths/weaknesses analysis
+  - Championship window outlook
+  - New /diagnose page with full UI
 - [x] **Contract Analysis** - Comprehensive contract data for dynasty evaluations
   - Contract status (elite/secure/tradeable/cuttable/expiring)
   - Years remaining, dead cap, avg annual value

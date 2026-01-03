@@ -109,6 +109,7 @@ export default function WaiversPage() {
               <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</Link>
               <Link href="/trade" className="text-zinc-400 hover:text-white transition-colors">Trade</Link>
               <Link href="/waivers" className="text-white">Waivers</Link>
+              <Link href="/diagnose" className="text-zinc-400 hover:text-white transition-colors">Diagnose</Link>
             </nav>
           </div>
           <div className="flex items-center gap-6 text-xs">

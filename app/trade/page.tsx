@@ -76,11 +76,31 @@ interface PickValue {
   };
 }
 
+interface SellWindowAlert {
+  urgency: 'SELL NOW' | 'SELL SOON' | 'HOLD' | 'BUY LOW' | 'BUY NOW';
+  reason: string;
+  eliteYearsLeft: number;
+  windowDescription: string;
+  actionAdvice: string;
+}
+
+interface ConsolidationAnalysis {
+  type: 'consolidating' | 'dispersing' | 'even';
+  warning: string | null;
+  premium: number;
+  recommendation: string;
+  breakdown: {
+    consolidatingSide: { playerCount: number; pickCount: number; totalAssets: number; avgValue: number };
+    dispersingSide: { playerCount: number; pickCount: number; totalAssets: number; avgValue: number };
+  };
+}
+
 interface TradeSide {
   players: Array<{
     name: string;
     dynasty: DynastyValue;
     redraft: RedraftValue;
+    sellWindow?: SellWindowAlert;
   }>;
   picks: PickValue[];
   totalDynastyValue: number;
@@ -90,6 +110,7 @@ interface TradeSide {
 interface TradeResult {
   side1: TradeSide;
   side2: TradeSide;
+  consolidation?: ConsolidationAnalysis;
   player1?: { dynasty: DynastyValue; redraft: RedraftValue };
   player2?: { dynasty: DynastyValue; redraft: RedraftValue };
   verdict: {
@@ -242,6 +263,16 @@ export default function TradePage() {
     }
   };
 
+  const getSellWindowStyle = (urgency: SellWindowAlert['urgency']) => {
+    switch (urgency) {
+      case 'SELL NOW': return 'bg-red-500/20 text-red-400 border-red-500/50';
+      case 'SELL SOON': return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
+      case 'BUY LOW': return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
+      case 'BUY NOW': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
+      default: return 'bg-zinc-700/20 text-zinc-400 border-zinc-600/50';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-mono selection:bg-amber-500/30">
       {/* Scanline overlay */}
@@ -265,6 +296,7 @@ export default function TradePage() {
               <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</Link>
               <Link href="/trade" className="text-white">Trade</Link>
               <Link href="/waivers" className="text-zinc-400 hover:text-white transition-colors">Waivers</Link>
+              <Link href="/diagnose" className="text-zinc-400 hover:text-white transition-colors">Diagnose</Link>
             </nav>
           </div>
           <div className="flex items-center gap-6 text-xs">
@@ -493,6 +525,35 @@ export default function TradePage() {
                 <span className="text-amber-400 font-bold">{result.verdict.gunToHead}</span>
               </div>
 
+              {/* Consolidation Warning */}
+              {result.consolidation && result.consolidation.warning && (
+                <div className="bg-purple-950/30 border border-purple-500/50 px-4 py-3 mb-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-purple-400 font-bold text-sm">CONSOLIDATION ALERT</span>
+                  </div>
+                  <div className="text-purple-300 text-sm">{result.consolidation.warning}</div>
+                  <div className="text-purple-400/70 text-xs mt-1">{result.consolidation.recommendation}</div>
+                </div>
+              )}
+
+              {/* Sell Window Alerts (Dynasty mode) */}
+              {mode === 'dynasty' && (
+                <>
+                  {[...result.side1.players, ...result.side2.players]
+                    .filter(p => p.sellWindow && (p.sellWindow.urgency === 'SELL NOW' || p.sellWindow.urgency === 'SELL SOON' || p.sellWindow.urgency === 'BUY NOW'))
+                    .map((p, i) => (
+                      <div key={i} className={`border px-3 py-2 mb-2 ${getSellWindowStyle(p.sellWindow!.urgency)}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm">{p.name}: {p.sellWindow!.urgency}</span>
+                          <span className="text-xs opacity-80">{p.sellWindow!.eliteYearsLeft} elite yr{p.sellWindow!.eliteYearsLeft !== 1 ? 's' : ''} left</span>
+                        </div>
+                        <div className="text-xs opacity-80 mt-0.5">{p.sellWindow!.reason}</div>
+                      </div>
+                    ))
+                  }
+                </>
+              )}
+
               {/* Reasoning */}
               {result.verdict.reasoning.length > 0 && (
                 <div className="border-t border-zinc-700 pt-4 mt-4">
@@ -520,6 +581,7 @@ export default function TradePage() {
                 getScoreColor={getScoreColor}
                 getTierColor={getTierColor}
                 getDifficultyColor={getDifficultyColor}
+                getSellWindowStyle={getSellWindowStyle}
               />
 
               {/* Side 2 - Giving */}
@@ -531,6 +593,7 @@ export default function TradePage() {
                 getScoreColor={getScoreColor}
                 getTierColor={getTierColor}
                 getDifficultyColor={getDifficultyColor}
+                getSellWindowStyle={getSellWindowStyle}
               />
             </div>
 
@@ -605,6 +668,8 @@ function PlayerCard({
   getScoreColor,
   getTierColor,
   getDifficultyColor,
+  sellWindow,
+  getSellWindowStyle,
 }: {
   label: string;
   labelColor: 'emerald' | 'amber';
@@ -613,6 +678,8 @@ function PlayerCard({
   getScoreColor: (score: number) => string;
   getTierColor: (tier: string) => string;
   getDifficultyColor: (diff: string) => string;
+  sellWindow?: SellWindowAlert;
+  getSellWindowStyle: (urgency: SellWindowAlert['urgency']) => string;
 }) {
   const isDynasty = mode === 'dynasty';
   const dynasty = data as DynastyValue;
@@ -655,6 +722,18 @@ function PlayerCard({
       {/* Dynasty-specific content */}
       {isDynasty && (
         <div className="p-4 space-y-4">
+          {/* Sell Window Alert - prominent display */}
+          {sellWindow && sellWindow.urgency !== 'HOLD' && (
+            <div className={`border px-3 py-2 ${getSellWindowStyle(sellWindow.urgency)}`}>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm">{sellWindow.urgency}</span>
+                <span className="text-xs opacity-80">{sellWindow.eliteYearsLeft} elite yr{sellWindow.eliteYearsLeft !== 1 ? 's' : ''} left</span>
+              </div>
+              <div className="text-xs opacity-80 mt-0.5">{sellWindow.reason}</div>
+              <div className="text-xs opacity-60 mt-1">{sellWindow.actionAdvice}</div>
+            </div>
+          )}
+
           {/* Tier badge and meta info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -848,6 +927,7 @@ function SideCard({
   getScoreColor,
   getTierColor,
   getDifficultyColor,
+  getSellWindowStyle,
 }: {
   label: string;
   labelColor: 'emerald' | 'amber';
@@ -856,6 +936,7 @@ function SideCard({
   getScoreColor: (score: number) => string;
   getTierColor: (tier: string) => string;
   getDifficultyColor: (diff: string) => string;
+  getSellWindowStyle: (urgency: SellWindowAlert['urgency']) => string;
 }) {
   const isDynasty = mode === 'dynasty';
   const totalScore = isDynasty ? side.totalDynastyValue : side.totalRedraftValue;
@@ -874,6 +955,8 @@ function SideCard({
         getScoreColor={getScoreColor}
         getTierColor={getTierColor}
         getDifficultyColor={getDifficultyColor}
+        sellWindow={p.sellWindow}
+        getSellWindowStyle={getSellWindowStyle}
       />
     );
   }
@@ -922,11 +1005,16 @@ function SideCard({
                 <span className={`font-bold ${getScoreColor(val.overallScore)}`}>{val.overallScore}</span>
               </div>
               {isDynasty && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`px-2 py-0.5 text-xs font-bold uppercase border ${getTierColor(p.dynasty.tier)}`}>
                     {p.dynasty.tier}
                   </span>
                   <span className="text-xs text-zinc-500">{p.dynasty.yearsOfEliteProduction}+ elite years</span>
+                  {p.sellWindow && p.sellWindow.urgency !== 'HOLD' && (
+                    <span className={`px-2 py-0.5 text-xs font-bold uppercase border ${getSellWindowStyle(p.sellWindow.urgency)}`}>
+                      {p.sellWindow.urgency}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

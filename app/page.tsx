@@ -194,6 +194,7 @@ export default function Home() {
               <a href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</a>
               <a href="/trade" className="text-zinc-400 hover:text-white transition-colors">Trade</a>
               <a href="/waivers" className="text-zinc-400 hover:text-white transition-colors">Waivers</a>
+              <a href="/diagnose" className="text-zinc-400 hover:text-white transition-colors">Diagnose</a>
             </nav>
           </div>
           <div className="flex items-center gap-4 text-xs">

@@ -3,6 +3,8 @@ import { sleeper } from '@/lib/providers/sleeper';
 import { calculateDynastyValue, DynastyValue } from '@/lib/trade/dynasty-value';
 import { calculateRedraftValue, RedraftValue } from '@/lib/trade/redraft-value';
 import { calculatePickValue, formatPick, DraftPick, PickValue } from '@/lib/trade/pick-values';
+import { getSellWindowAlert, SellWindowAlert } from '@/lib/trade/sell-window';
+import { analyzeConsolidation, ConsolidationAnalysis } from '@/lib/trade/consolidation';
 
 type TradeMode = 'dynasty' | 'redraft';
 
@@ -11,6 +13,7 @@ interface TradeSide {
     name: string;
     dynasty: DynastyValue;
     redraft: RedraftValue;
+    sellWindow?: SellWindowAlert;
   }>;
   picks: Array<{
     pick: DraftPick;
@@ -23,6 +26,7 @@ interface TradeSide {
 interface TradeAnalysis {
   side1: TradeSide;
   side2: TradeSide;
+  consolidation?: ConsolidationAnalysis;
   // Legacy fields for backwards compatibility
   player1?: {
     dynasty: DynastyValue;
@@ -106,7 +110,8 @@ export async function GET(request: NextRequest) {
       }
       const dynasty = calculateDynastyValue(player);
       const redraft = await calculateRedraftValue(player);
-      side1.players.push({ name: player.name, dynasty, redraft });
+      const sellWindow = getSellWindowAlert(player);
+      side1.players.push({ name: player.name, dynasty, redraft, sellWindow });
       side1.totalDynastyValue += dynasty.overallScore;
       side1.totalRedraftValue += redraft.overallScore;
     }
@@ -139,7 +144,8 @@ export async function GET(request: NextRequest) {
       }
       const dynasty = calculateDynastyValue(player);
       const redraft = await calculateRedraftValue(player);
-      side2.players.push({ name: player.name, dynasty, redraft });
+      const sellWindow = getSellWindowAlert(player);
+      side2.players.push({ name: player.name, dynasty, redraft, sellWindow });
       side2.totalDynastyValue += dynasty.overallScore;
       side2.totalRedraftValue += redraft.overallScore;
     }
@@ -243,10 +249,41 @@ export async function GET(request: NextRequest) {
     if (side1.picks.length + side2.picks.length > 0) confidence -= 5; // Picks are uncertain
     confidence = Math.max(40, Math.min(95, confidence));
 
+    // Consolidation analysis (dynasty mode only)
+    let consolidation: ConsolidationAnalysis | undefined;
+    if (mode === 'dynasty') {
+      const side1PlayerValues = side1.players.map(p => p.dynasty.overallScore);
+      const side2PlayerValues = side2.players.map(p => p.dynasty.overallScore);
+
+      consolidation = analyzeConsolidation(
+        side1.players.length,
+        side1.picks.length,
+        side1.totalDynastyValue,
+        side1PlayerValues,
+        side2.players.length,
+        side2.picks.length,
+        side2.totalDynastyValue,
+        side2PlayerValues
+      );
+
+      // Add consolidation warning to reasoning if applicable
+      if (consolidation.warning) {
+        reasoning.push(consolidation.warning);
+      }
+
+      // Add sell window alerts to reasoning (dynasty mode)
+      for (const p of [...side1.players, ...side2.players]) {
+        if (p.sellWindow && (p.sellWindow.urgency === 'SELL NOW' || p.sellWindow.urgency === 'SELL SOON')) {
+          reasoning.push(`${p.name}: ${p.sellWindow.urgency} - ${p.sellWindow.reason}`);
+        }
+      }
+    }
+
     // Build response with backwards compatibility
     const response: TradeAnalysis = {
       side1,
       side2,
+      consolidation,
       // Legacy fields for backwards compatibility
       player1: side1.players[0] ? { dynasty: side1.players[0].dynasty, redraft: side1.players[0].redraft } : undefined,
       player2: side2.players[0] ? { dynasty: side2.players[0].dynasty, redraft: side2.players[0].redraft } : undefined,
