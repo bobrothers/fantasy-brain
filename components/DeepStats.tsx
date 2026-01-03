@@ -274,20 +274,26 @@ export default function DeepStats({ playerName, position }: Props) {
           {data.snapTrend && data.snapTrend.weeklySnaps.length > 0 && (
             <div className="bg-zinc-800/30 p-3 rounded">
               <div className="text-xs text-zinc-500 uppercase mb-2">Weekly Snap %</div>
-              <div className="flex items-end justify-between gap-1 h-12">
+              <div className="flex items-end gap-1" style={{ height: '48px' }}>
                 {data.snapTrend.weeklySnaps.slice(-8).map((week, i) => {
-                  const height = (week.snapPct / 100) * 100;
+                  const heightPx = Math.max(4, (week.snapPct / 100) * 48); // Min 4px, max 48px
                   const isRecent = i >= data.snapTrend!.weeklySnaps.slice(-8).length - 3;
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center">
+                    <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
                       <div
                         className={`w-full rounded-t ${isRecent ? 'bg-emerald-500' : 'bg-zinc-600'}`}
-                        style={{ height: `${height}%` }}
+                        style={{ height: `${heightPx}px` }}
                       />
-                      <span className="text-[8px] text-zinc-600 mt-1">W{week.week}</span>
                     </div>
                   );
                 })}
+              </div>
+              <div className="flex gap-1 mt-1">
+                {data.snapTrend.weeklySnaps.slice(-8).map((week, i) => (
+                  <div key={i} className="flex-1 text-center">
+                    <span className="text-[8px] text-zinc-600">W{week.week}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
