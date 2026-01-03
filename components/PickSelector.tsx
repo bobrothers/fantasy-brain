@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface DraftPick {
   year: number;
@@ -56,11 +56,13 @@ function getPlayerEquivalent(value: number): string {
 
 export default function PickSelector({ picks, onChange, maxPicks = 4, label, color }: Props) {
   const [showForm, setShowForm] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [newPick, setNewPick] = useState<DraftPick>({
     year: YEARS[0],
     round: 1,
     position: 'mid',
   });
+  const infoRef = useRef<HTMLDivElement>(null);
 
   const addPick = () => {
     if (picks.length >= maxPicks) return;
@@ -84,7 +86,46 @@ export default function PickSelector({ picks, onChange, maxPicks = 4, label, col
 
   return (
     <div className="mt-3">
-      <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{label}</div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs text-zinc-500 uppercase tracking-wider">{label}</span>
+        <div className="relative" ref={infoRef}>
+          <button
+            type="button"
+            onClick={() => setShowInfo(!showInfo)}
+            onMouseEnter={() => setShowInfo(true)}
+            onMouseLeave={() => setShowInfo(false)}
+            className="text-zinc-600 hover:text-zinc-400 transition-colors"
+            aria-label="Pick scoring info"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          {showInfo && (
+            <div className="absolute z-50 left-0 top-5 w-64 bg-zinc-800 border border-zinc-700 shadow-xl p-3 text-xs">
+              <div className="font-bold text-zinc-200 mb-2">Pick Scoring</div>
+              <div className="space-y-1 text-zinc-400 mb-2">
+                <div className="flex justify-between"><span>Early 1st</span><span className="text-emerald-400">85 pts</span></div>
+                <div className="flex justify-between"><span>Mid 1st</span><span className="text-lime-400">72 pts</span></div>
+                <div className="flex justify-between"><span>Late 1st</span><span className="text-lime-400">60 pts</span></div>
+                <div className="flex justify-between"><span>Early 2nd</span><span className="text-amber-400">48 pts</span></div>
+                <div className="flex justify-between"><span>Mid 2nd</span><span className="text-amber-400">40 pts</span></div>
+                <div className="flex justify-between"><span>Late 2nd</span><span className="text-orange-400">32 pts</span></div>
+                <div className="flex justify-between"><span>3rd Round</span><span className="text-orange-400">15-25 pts</span></div>
+                <div className="flex justify-between"><span>4th Round</span><span className="text-red-400">5-12 pts</span></div>
+              </div>
+              <div className="border-t border-zinc-700 pt-2 mt-2">
+                <div className="font-bold text-zinc-300 mb-1">Future Discount</div>
+                <div className="text-zinc-500">
+                  <div>2026: -8%</div>
+                  <div>2027: -18%</div>
+                  <div>2028: -30%</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Existing picks */}
       {picks.length > 0 && (
