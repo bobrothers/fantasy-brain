@@ -23,7 +23,7 @@ const NFL_DIVISIONS: Record<string, string[]> = {
   // AFC West
   AFC_WEST: ['DEN', 'KC', 'LV', 'LAC'],
   // NFC East
-  NFC_EAST: ['DAL', 'NYG', 'PHI', 'WSH'],
+  NFC_EAST: ['DAL', 'NYG', 'PHI', 'WAS'],
   // NFC North
   NFC_NORTH: ['CHI', 'DET', 'GB', 'MIN'],
   // NFC South

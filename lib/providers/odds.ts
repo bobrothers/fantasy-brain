@@ -76,7 +76,7 @@ const TEAM_ABBREV: Record<string, string> = {
   'Seattle Seahawks': 'SEA',
   'Tampa Bay Buccaneers': 'TB',
   'Tennessee Titans': 'TEN',
-  'Washington Commanders': 'WSH',
+  'Washington Commanders': 'WAS',
 };
 
 function getTeamAbbrev(fullName: string): string {

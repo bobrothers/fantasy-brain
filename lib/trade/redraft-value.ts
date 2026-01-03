@@ -50,13 +50,13 @@ const DEFENSE_RANKINGS: Record<string, { vsQB: number; vsRB: number; vsWR: numbe
   SEA: { vsQB: 25, vsRB: 17, vsWR: 25, vsTE: 25 },
   TB: { vsQB: 17, vsRB: 15, vsWR: 17, vsTE: 17 },
   TEN: { vsQB: 31, vsRB: 32, vsWR: 31, vsTE: 31 },
-  WSH: { vsQB: 15, vsRB: 13, vsWR: 15, vsTE: 15 },
+  WAS: { vsQB: 15, vsRB: 13, vsWR: 15, vsTE: 15 },
 };
 
 // Playoff schedule (Weeks 15-17 for most leagues)
 const PLAYOFF_SCHEDULE: Record<string, { week15: string; week16: string; week17: string }> = {
   ARI: { week15: 'NE', week16: 'CAR', week17: 'LAR' },
-  ATL: { week15: 'MIN', week16: 'NYG', week17: 'WSH' },
+  ATL: { week15: 'MIN', week16: 'NYG', week17: 'WAS' },
   BAL: { week15: 'NYG', week16: 'PIT', week17: 'HOU' },
   BUF: { week15: 'DET', week16: 'NE', week17: 'NYJ' },
   CAR: { week15: 'DAL', week16: 'ARI', week17: 'TB' },
@@ -77,16 +77,16 @@ const PLAYOFF_SCHEDULE: Record<string, { week15: string; week16: string; week17:
   MIA: { week15: 'HOU', week16: 'SF', week17: 'CLE' },
   MIN: { week15: 'CHI', week16: 'SEA', week17: 'GB' },
   NE: { week15: 'ARI', week16: 'BUF', week17: 'LAC' },
-  NO: { week15: 'WSH', week16: 'GB', week17: 'LV' },
+  NO: { week15: 'WAS', week16: 'GB', week17: 'LV' },
   NYG: { week15: 'BAL', week16: 'ATL', week17: 'IND' },
   NYJ: { week15: 'JAX', week16: 'LAR', week17: 'BUF' },
-  PHI: { week15: 'PIT', week16: 'WSH', week17: 'DAL' },
+  PHI: { week15: 'PIT', week16: 'WAS', week17: 'DAL' },
   PIT: { week15: 'PHI', week16: 'BAL', week17: 'KC' },
   SF: { week15: 'LAR', week16: 'MIA', week17: 'DET' },
   SEA: { week15: 'GB', week16: 'MIN', week17: 'CHI' },
   TB: { week15: 'LAC', week16: 'DAL', week17: 'CAR' },
   TEN: { week15: 'CIN', week16: 'IND', week17: 'JAX' },
-  WSH: { week15: 'NO', week16: 'PHI', week17: 'ATL' },
+  WAS: { week15: 'NO', week16: 'PHI', week17: 'ATL' },
 };
 
 // This season's injury/availability data
