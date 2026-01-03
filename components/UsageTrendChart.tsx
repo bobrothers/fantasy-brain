@@ -127,7 +127,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
       <div className="flex items-center gap-6">
         {/* Chart */}
         <div className="flex-1">
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12" style={{ overflow: 'visible' }}>
+          <svg viewBox={`0 0 ${width} ${height + 15}`} className="w-full" style={{ height: '65px', overflow: 'visible' }}>
             {/* Grid lines */}
             <line x1={0} y1={height/2} x2={width} y2={height/2}
               stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
@@ -142,20 +142,22 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               strokeLinejoin="round"
             />
 
-            {/* Data points */}
+            {/* Data points and week labels */}
             {points.map((p, i) => (
               <g key={i}>
                 <circle cx={p.x} cy={p.y} r="4" fill="#18181b" stroke={lineColor} strokeWidth="2" />
+                <text
+                  x={p.x}
+                  y={height + 12}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="#52525b"
+                >
+                  W{data.weeks[i].week}
+                </text>
               </g>
             ))}
           </svg>
-
-          {/* Week labels */}
-          <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
-            {data.weeks.map((w, i) => (
-              <span key={i}>W{w.week}</span>
-            ))}
-          </div>
         </div>
 
         {/* Stats */}
