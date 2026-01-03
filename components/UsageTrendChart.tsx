@@ -129,9 +129,23 @@ export default function UsageTrendChart({ playerName, position }: Props) {
         {/* Chart */}
         <div className="flex-1">
           <svg viewBox={`0 0 ${width} ${height + labelHeight}`} className="w-full" style={{ height: '95px', overflow: 'visible' }}>
+            {/* Gradient definition */}
+            <defs>
+              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+
             {/* Grid lines */}
             <line x1={0} y1={height/2} x2={width} y2={height/2}
               stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
+
+            {/* Area fill under line */}
+            <path
+              d={`${pathD} L ${points[points.length - 1]?.x} ${height - verticalPadding} L ${points[0]?.x} ${height - verticalPadding} Z`}
+              fill="url(#areaGradient)"
+            />
 
             {/* Trend line */}
             <path
@@ -149,13 +163,27 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               const pctValue = showCarryShare ? weekData?.carryShare : weekData?.targetShare;
               const rawValue = showCarryShare ? weekData?.carries : weekData?.targets;
               const rawLabel = showCarryShare ? 'car' : 'tgt';
+              const isLast = i === points.length - 1;
               return (
                 <g key={i}>
-                  <circle cx={p.x} cy={p.y} r="4" fill="#18181b" stroke={lineColor} strokeWidth="2" />
-                  <text x={p.x} y={height + 12} textAnchor="middle" fontSize="10" fill="#52525b">
+                  {/* Pulse ring for latest week */}
+                  {isLast && (
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="8"
+                      fill="none"
+                      stroke={lineColor}
+                      strokeWidth="2"
+                      opacity="0.5"
+                      className="animate-ping"
+                    />
+                  )}
+                  <circle cx={p.x} cy={p.y} r="4" fill={isLast ? lineColor : "#18181b"} stroke={lineColor} strokeWidth="2" />
+                  <text x={p.x} y={height + 12} textAnchor="middle" fontSize="10" fill={isLast ? "#a1a1aa" : "#52525b"}>
                     W{weekData?.week}
                   </text>
-                  <text x={p.x} y={height + 24} textAnchor="middle" fontSize="10" fill="#d4d4d8">
+                  <text x={p.x} y={height + 24} textAnchor="middle" fontSize="10" fill={isLast ? "#ffffff" : "#d4d4d8"} fontWeight={isLast ? "bold" : "normal"}>
                     {pctValue?.toFixed(0)}%
                   </text>
                   <text x={p.x} y={height + 34} textAnchor="middle" fontSize="8" fill="#52525b">
