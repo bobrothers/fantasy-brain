@@ -91,6 +91,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
   const width = 200;
   const height = 50;
   const verticalPadding = 8;
+  const labelHeight = 35; // Space for week labels and stats below chart
 
   const maxVal = Math.max(...values, 1);
   const minVal = Math.min(...values);
@@ -127,7 +128,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
       <div className="flex items-center gap-6">
         {/* Chart */}
         <div className="flex-1">
-          <svg viewBox={`0 0 ${width} ${height + 15}`} className="w-full" style={{ height: '65px', overflow: 'visible' }}>
+          <svg viewBox={`0 0 ${width} ${height + labelHeight}`} className="w-full" style={{ height: '95px', overflow: 'visible' }}>
             {/* Grid lines */}
             <line x1={0} y1={height/2} x2={width} y2={height/2}
               stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
@@ -142,21 +143,27 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               strokeLinejoin="round"
             />
 
-            {/* Data points and week labels */}
-            {points.map((p, i) => (
-              <g key={i}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#18181b" stroke={lineColor} strokeWidth="2" />
-                <text
-                  x={p.x}
-                  y={height + 12}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="#52525b"
-                >
-                  W{data.weeks?.[i]?.week}
-                </text>
-              </g>
-            ))}
+            {/* Data points, week labels, and stats */}
+            {points.map((p, i) => {
+              const weekData = data.weeks?.[i];
+              const pctValue = showCarryShare ? weekData?.carryShare : weekData?.targetShare;
+              const rawValue = showCarryShare ? weekData?.carries : weekData?.targets;
+              const rawLabel = showCarryShare ? 'car' : 'tgt';
+              return (
+                <g key={i}>
+                  <circle cx={p.x} cy={p.y} r="4" fill="#18181b" stroke={lineColor} strokeWidth="2" />
+                  <text x={p.x} y={height + 12} textAnchor="middle" fontSize="10" fill="#52525b">
+                    W{weekData?.week}
+                  </text>
+                  <text x={p.x} y={height + 24} textAnchor="middle" fontSize="10" fill="#d4d4d8">
+                    {pctValue?.toFixed(0)}%
+                  </text>
+                  <text x={p.x} y={height + 34} textAnchor="middle" fontSize="8" fill="#52525b">
+                    {rawValue} {rawLabel}
+                  </text>
+                </g>
+              );
+            })}
           </svg>
         </div>
 
@@ -170,20 +177,6 @@ export default function UsageTrendChart({ playerName, position }: Props) {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Weekly values */}
-      <div className="flex justify-between mt-3 pt-3 border-t border-zinc-800">
-        {data.weeks.map((w, i) => (
-          <div key={i} className="text-center">
-            <div className="text-xs text-zinc-300">
-              {showCarryShare ? w.carryShare?.toFixed(0) : w.targetShare?.toFixed(0)}%
-            </div>
-            <div className="text-[10px] text-zinc-600">
-              {showCarryShare ? `${w.carries} car` : `${w.targets} tgt`}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
