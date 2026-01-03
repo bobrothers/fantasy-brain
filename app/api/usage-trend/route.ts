@@ -24,10 +24,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Get team rank
+    const teamRankData = await nflfastr.getTeamRank(player, trendData.position);
+
     return NextResponse.json({
       player,
       available: true,
       ...trendData,
+      teamRank: teamRankData?.rank,
+      teamTotal: teamRankData?.total,
     });
   } catch (error) {
     console.error('Error fetching usage trend:', error);

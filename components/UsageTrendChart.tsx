@@ -21,6 +21,8 @@ interface UsageTrendData {
   targetTrend?: 'up' | 'down' | 'stable';
   carryTrend?: 'up' | 'down' | 'stable';
   trendChange?: number;
+  teamRank?: number;
+  teamTotal?: number;
 }
 
 interface Props {
@@ -32,6 +34,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
   const [data, setData] = useState<UsageTrendData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchTrend = async () => {
@@ -87,17 +90,21 @@ export default function UsageTrendChart({ playerName, position }: Props) {
   const trend = showCarryShare ? data.carryTrend : data.targetTrend;
   const avg = showCarryShare ? data.avgCarryShare : data.avgTargetShare;
 
-  // Chart dimensions - no horizontal padding so points align with labels
+  // Chart dimensions
   const width = 200;
   const height = 50;
   const verticalPadding = 8;
-  const labelHeight = 35; // Space for week labels and stats below chart
+  const labelHeight = 35;
 
   const maxVal = Math.max(...values, 1);
   const minVal = Math.min(...values);
   const range = maxVal - minVal || 1;
 
-  // Generate SVG path - x goes edge to edge to match justify-between labels
+  // Season average (use player's own average for the line)
+  const seasonAvg = avg || 0;
+  const avgY = height - verticalPadding - ((seasonAvg - minVal) / range) * (height - verticalPadding * 2);
+
+  // Generate SVG path
   const points = values.map((val, i) => {
     const x = (i / (values.length - 1)) * width;
     const y = height - verticalPadding - ((val - minVal) / range) * (height - verticalPadding * 2);
@@ -108,17 +115,39 @@ export default function UsageTrendChart({ playerName, position }: Props) {
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');
 
-  // Trend indicator
+  // Calculate arrow angle from last two points
+  const lastPoint = points[points.length - 1];
+  const secondLastPoint = points[points.length - 2];
+  const arrowAngle = Math.atan2(
+    lastPoint.y - secondLastPoint.y,
+    lastPoint.x - secondLastPoint.x
+  ) * (180 / Math.PI);
+
+  // Trend styling
   const trendIcon = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '─';
   const trendColor = trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-zinc-500';
   const trendText = trend === 'up' ? 'Trending Up' : trend === 'down' ? 'Trending Down' : 'Stable';
   const lineColor = trend === 'up' ? '#34d399' : trend === 'down' ? '#f87171' : '#71717a';
 
+  // Position rank text
+  const getRankText = () => {
+    if (!data.teamRank) return null;
+    const suffix = data.teamRank === 1 ? 'st' : data.teamRank === 2 ? 'nd' : data.teamRank === 3 ? 'rd' : 'th';
+    return `#${data.teamRank}${suffix} on team`;
+  };
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-xs text-zinc-500 uppercase tracking-wider">
-          Usage Trend (Last 6 Weeks)
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-zinc-500 uppercase tracking-wider">
+            Usage Trend (Last 6 Weeks)
+          </span>
+          {data.teamRank && (
+            <span className="text-xs bg-zinc-800 px-2 py-0.5 text-amber-400">
+              {getRankText()}
+            </span>
+          )}
         </div>
         <div className={`text-xs font-bold ${trendColor}`}>
           {trendIcon} {trendText}
@@ -127,19 +156,41 @@ export default function UsageTrendChart({ playerName, position }: Props) {
 
       <div className="flex items-center gap-6">
         {/* Chart */}
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <svg viewBox={`0 0 ${width} ${height + labelHeight}`} className="w-full" style={{ height: '95px', overflow: 'visible' }}>
-            {/* Gradient definition */}
+            {/* Definitions */}
             <defs>
               <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
                 <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
               </linearGradient>
+              {/* Arrow marker */}
+              <marker
+                id="arrowHead"
+                markerWidth="6"
+                markerHeight="6"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L6,3 L0,6 L1,3 Z" fill={lineColor} />
+              </marker>
             </defs>
 
-            {/* Grid lines */}
-            <line x1={0} y1={height/2} x2={width} y2={height/2}
-              stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
+            {/* Season average line */}
+            <line
+              x1={0}
+              y1={avgY}
+              x2={width}
+              y2={avgY}
+              stroke="#fbbf24"
+              strokeWidth="1"
+              strokeDasharray="4,4"
+              opacity="0.5"
+            />
+            <text x={width - 2} y={avgY - 4} textAnchor="end" fontSize="8" fill="#fbbf24" opacity="0.7">
+              AVG
+            </text>
 
             {/* Area fill under line */}
             <path
@@ -147,7 +198,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               fill="url(#areaGradient)"
             />
 
-            {/* Trend line */}
+            {/* Trend line with arrow */}
             <path
               d={pathD}
               fill="none"
@@ -155,7 +206,20 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
+              markerEnd="url(#arrowHead)"
             />
+
+            {/* Trend direction arrow at end */}
+            <g transform={`translate(${lastPoint.x + 8}, ${lastPoint.y}) rotate(${arrowAngle})`}>
+              <path
+                d="M0,-4 L8,0 L0,4"
+                fill="none"
+                stroke={lineColor}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
 
             {/* Data points, week labels, and stats */}
             {points.map((p, i) => {
@@ -164,8 +228,17 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               const rawValue = showCarryShare ? weekData?.carries : weekData?.targets;
               const rawLabel = showCarryShare ? 'car' : 'tgt';
               const isLast = i === points.length - 1;
+              const isHovered = hoveredPoint === i;
               return (
-                <g key={i}>
+                <g
+                  key={i}
+                  onMouseEnter={() => setHoveredPoint(i)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {/* Hover hitbox */}
+                  <circle cx={p.x} cy={p.y} r="12" fill="transparent" />
+
                   {/* Pulse ring for latest week */}
                   {isLast && (
                     <circle
@@ -176,30 +249,74 @@ export default function UsageTrendChart({ playerName, position }: Props) {
                       stroke={lineColor}
                       strokeWidth="2"
                     >
-                      <animate
-                        attributeName="r"
-                        from="6"
-                        to="12"
-                        dur="1.5s"
-                        repeatCount="indefinite"
-                      />
-                      <animate
-                        attributeName="opacity"
-                        from="0.6"
-                        to="0"
-                        dur="1.5s"
-                        repeatCount="indefinite"
-                      />
+                      <animate attributeName="r" from="6" to="12" dur="1.5s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" from="0.6" to="0" dur="1.5s" repeatCount="indefinite" />
                     </circle>
                   )}
-                  <circle cx={p.x} cy={p.y} r="4" fill={isLast ? lineColor : "#18181b"} stroke={lineColor} strokeWidth="2" />
-                  <text x={p.x} y={height + 12} textAnchor="middle" fontSize="10" fill={isLast ? "#a1a1aa" : "#52525b"}>
+
+                  {/* Data point */}
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={isHovered ? 6 : 4}
+                    fill={isLast || isHovered ? lineColor : "#18181b"}
+                    stroke={lineColor}
+                    strokeWidth="2"
+                    style={{ transition: 'r 0.15s ease' }}
+                  />
+
+                  {/* Tooltip on hover */}
+                  {isHovered && (
+                    <g>
+                      <rect
+                        x={p.x - 35}
+                        y={p.y - 45}
+                        width="70"
+                        height="35"
+                        rx="4"
+                        fill="#18181b"
+                        stroke="#3f3f46"
+                        strokeWidth="1"
+                      />
+                      <text x={p.x} y={p.y - 32} textAnchor="middle" fontSize="10" fill="#ffffff" fontWeight="bold">
+                        {pctValue?.toFixed(1)}%
+                      </text>
+                      <text x={p.x} y={p.y - 20} textAnchor="middle" fontSize="9" fill="#a1a1aa">
+                        {rawValue} {rawLabel} • W{weekData?.week}
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Week labels and stats (dimmed when another point is hovered) */}
+                  <text
+                    x={p.x}
+                    y={height + 12}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill={isLast ? "#a1a1aa" : "#52525b"}
+                    opacity={hoveredPoint !== null && !isHovered ? 0.4 : 1}
+                  >
                     W{weekData?.week}
                   </text>
-                  <text x={p.x} y={height + 24} textAnchor="middle" fontSize="10" fill={isLast ? "#ffffff" : "#d4d4d8"} fontWeight={isLast ? "bold" : "normal"}>
+                  <text
+                    x={p.x}
+                    y={height + 24}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill={isLast ? "#ffffff" : "#d4d4d8"}
+                    fontWeight={isLast ? "bold" : "normal"}
+                    opacity={hoveredPoint !== null && !isHovered ? 0.4 : 1}
+                  >
                     {pctValue?.toFixed(0)}%
                   </text>
-                  <text x={p.x} y={height + 34} textAnchor="middle" fontSize="8" fill="#52525b">
+                  <text
+                    x={p.x}
+                    y={height + 34}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fill="#52525b"
+                    opacity={hoveredPoint !== null && !isHovered ? 0.4 : 1}
+                  >
                     {rawValue} {rawLabel}
                   </text>
                 </g>
@@ -218,6 +335,18 @@ export default function UsageTrendChart({ playerName, position }: Props) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-3 pt-2 border-t border-zinc-800 text-[10px] text-zinc-600">
+        <span className="flex items-center gap-1">
+          <span className="w-4 h-px bg-amber-400 opacity-50" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #fbbf24 0, #fbbf24 4px, transparent 4px, transparent 8px)' }}></span>
+          Season Avg
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: lineColor }}></span>
+          Latest
+        </span>
       </div>
     </div>
   );

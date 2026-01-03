@@ -700,6 +700,75 @@ async function getUsageTrend(
 }
 
 /**
+ * Get player's rank on their team for target/carry share
+ */
+async function getTeamRank(
+  playerName: string,
+  position: string
+): Promise<{ rank: number; total: number } | null> {
+  const allStats = await loadPlayerStats();
+
+  // Find player's team
+  const playerStats = allStats.filter(s =>
+    s.playerName.toLowerCase().includes(playerName.toLowerCase()) ||
+    playerName.toLowerCase().includes(s.playerName.toLowerCase())
+  );
+
+  if (playerStats.length === 0) return null;
+
+  const team = playerStats[0].team;
+  const latestWeek = Math.max(...playerStats.map(s => s.week));
+
+  // Get all teammates with same position group in recent weeks
+  const recentWeeks = [latestWeek, latestWeek - 1, latestWeek - 2].filter(w => w > 0);
+
+  // Calculate average usage per player on team
+  const playerUsage = new Map<string, { total: number; games: number }>();
+
+  for (const stat of allStats) {
+    if (stat.team !== team || !recentWeeks.includes(stat.week)) continue;
+
+    // For RBs, use carries; for WR/TE use targets
+    const usage = position === 'RB' ? (stat.carries || 0) : (stat.targets || 0);
+    if (usage === 0) continue;
+
+    // Only compare within position group for targets (WR/TE together)
+    const isReceiver = ['WR', 'TE'].includes(stat.position);
+    const playerIsReceiver = ['WR', 'TE'].includes(position);
+    const isRB = stat.position === 'RB';
+    const playerIsRB = position === 'RB';
+
+    if ((playerIsReceiver && !isReceiver) || (playerIsRB && !isRB)) continue;
+
+    const current = playerUsage.get(stat.playerName) || { total: 0, games: 0 };
+    playerUsage.set(stat.playerName, {
+      total: current.total + usage,
+      games: current.games + 1,
+    });
+  }
+
+  // Calculate averages and rank
+  const rankings = Array.from(playerUsage.entries())
+    .map(([name, data]) => ({
+      name,
+      avgUsage: data.total / data.games,
+    }))
+    .sort((a, b) => b.avgUsage - a.avgUsage);
+
+  const playerRank = rankings.findIndex(r =>
+    r.name.toLowerCase().includes(playerName.toLowerCase()) ||
+    playerName.toLowerCase().includes(r.name.toLowerCase())
+  );
+
+  if (playerRank === -1) return null;
+
+  return {
+    rank: playerRank + 1,
+    total: rankings.length,
+  };
+}
+
+/**
  * Clear cached data (useful for refreshing)
  */
 function clearCache(): void {
@@ -714,6 +783,7 @@ export const nflfastr = {
   getTargetShare,
   getCarryShare,
   getUsageTrend,
+  getTeamRank,
   getPerformanceVsTeam,
   getEmergingReceivers,
   getRedZoneUsage,
