@@ -102,24 +102,58 @@ export default function PickSelector({ picks, onChange, maxPicks = 4, label, col
             </svg>
           </button>
           {showInfo && (
-            <div className="absolute z-50 left-0 top-5 w-64 bg-zinc-800 border border-zinc-700 shadow-xl p-3 text-xs">
-              <div className="font-bold text-zinc-200 mb-2">Pick Scoring</div>
-              <div className="space-y-1 text-zinc-400 mb-2">
-                <div className="flex justify-between"><span>Early 1st</span><span className="text-emerald-400">85 pts</span></div>
-                <div className="flex justify-between"><span>Mid 1st</span><span className="text-lime-400">72 pts</span></div>
-                <div className="flex justify-between"><span>Late 1st</span><span className="text-lime-400">60 pts</span></div>
-                <div className="flex justify-between"><span>Early 2nd</span><span className="text-amber-400">48 pts</span></div>
-                <div className="flex justify-between"><span>Mid 2nd</span><span className="text-amber-400">40 pts</span></div>
-                <div className="flex justify-between"><span>Late 2nd</span><span className="text-orange-400">32 pts</span></div>
-                <div className="flex justify-between"><span>3rd Round</span><span className="text-orange-400">15-25 pts</span></div>
-                <div className="flex justify-between"><span>4th Round</span><span className="text-red-400">5-12 pts</span></div>
+            <div className="absolute z-50 left-0 top-5 w-72 bg-zinc-800 border border-zinc-700 shadow-xl p-3 text-xs">
+              <div className="font-bold text-zinc-200 mb-2">Pick Value = Hit Rate</div>
+              <div className="text-zinc-500 text-[10px] mb-2">Based on historical rookie draft outcomes</div>
+              <div className="space-y-1.5 text-zinc-400 mb-3">
+                <div className="flex justify-between items-center">
+                  <span>Early 1st</span>
+                  <span className="text-zinc-500 text-[10px]">~50% starter, ~25% star</span>
+                  <span className="text-emerald-400 font-bold">85</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Mid 1st</span>
+                  <span className="text-zinc-500 text-[10px]">~40% starter, ~15% star</span>
+                  <span className="text-lime-400 font-bold">72</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Late 1st</span>
+                  <span className="text-zinc-500 text-[10px]">~35% starter, ~10% star</span>
+                  <span className="text-lime-400 font-bold">60</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Early 2nd</span>
+                  <span className="text-zinc-500 text-[10px]">~25% starter, ~5% star</span>
+                  <span className="text-amber-400 font-bold">48</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Mid 2nd</span>
+                  <span className="text-zinc-500 text-[10px]">~20% starter</span>
+                  <span className="text-amber-400 font-bold">40</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Late 2nd</span>
+                  <span className="text-zinc-500 text-[10px]">~15% starter</span>
+                  <span className="text-orange-400 font-bold">32</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>3rd Round</span>
+                  <span className="text-zinc-500 text-[10px]">~8% starter</span>
+                  <span className="text-orange-400 font-bold">15-25</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>4th Round</span>
+                  <span className="text-zinc-500 text-[10px]">lottery ticket</span>
+                  <span className="text-red-400 font-bold">5-12</span>
+                </div>
               </div>
-              <div className="border-t border-zinc-700 pt-2 mt-2">
-                <div className="font-bold text-zinc-300 mb-1">Future Discount</div>
-                <div className="text-zinc-500">
-                  <div>2026: -8%</div>
-                  <div>2027: -18%</div>
-                  <div>2028: -30%</div>
+              <div className="border-t border-zinc-700 pt-2">
+                <div className="font-bold text-zinc-300 mb-1">Future Pick Discount</div>
+                <div className="text-zinc-500 text-[10px] mb-1">Uncertainty increases with time</div>
+                <div className="flex gap-4 text-zinc-400">
+                  <span>2026: <span className="text-zinc-300">-8%</span></span>
+                  <span>2027: <span className="text-zinc-300">-18%</span></span>
+                  <span>2028: <span className="text-zinc-300">-30%</span></span>
                 </div>
               </div>
             </div>
