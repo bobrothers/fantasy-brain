@@ -134,7 +134,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className="text-xs text-zinc-500 uppercase tracking-wider">
-            Usage Trend (Last 6 Weeks)
+            Usage Trend
           </span>
           {data.teamRank && (
             <span className="text-xs bg-zinc-800 px-2 py-0.5 text-amber-400">
