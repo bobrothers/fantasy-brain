@@ -127,8 +127,8 @@ export async function detectRestAdvantageEdge(
   let summary: string;
   if (Math.abs(restDiff) >= 3) {
     summary = hasAdvantage
-      ? `Rest edge: +${restDiff} days vs ${opponentTeam}`
-      : `Short rest: ${restDiff} days vs ${opponentTeam}`;
+      ? `Rest edge: ${teamRest} days vs ${opponentTeam}'s ${oppRest}`
+      : `Rest disadvantage: ${teamRest} days vs ${opponentTeam}'s ${oppRest}`;
   } else {
     summary = 'Equal rest';
   }

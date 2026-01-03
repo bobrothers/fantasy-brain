@@ -22,7 +22,8 @@
       "Bash(npm run build:*)",
       "Bash(git restore:*)",
       "Bash(node -e:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(jq:*)"
     ]
   }
 }
