@@ -4,12 +4,14 @@
  * Tracks if a player over/underperforms in SNF/MNF/TNF primetime games.
  * Some players thrive under the lights, others shrink.
  *
- * DATA DISCLAIMER: Using sample 2025 data. Would integrate with nflfastR for real stats.
+ * Now uses dynamic schedule from ESPN API to detect primetime games.
+ * DATA DISCLAIMER: Performance data is sample 2025 data. Would integrate with nflfastR for real stats.
  */
 
 import type { EdgeSignal, Player } from '../../types';
+import { isPrimetimeGame } from '../schedule';
 
-type SlotType = 'SNF' | 'MNF' | 'TNF' | 'regular';
+type SlotType = 'SNF' | 'MNF' | 'TNF' | 'SAT' | 'regular';
 
 interface PrimetimeData {
   regularAvg: number;
@@ -36,17 +38,6 @@ const PRIMETIME_PERFORMERS: Record<string, PrimetimeData> = {
   'Aaron Jones': { regularAvg: 15.8, primetimeAvg: 12.5, primetimeGames: 3 },
 };
 
-// Week 18 primetime games
-const PRIMETIME_GAMES: Record<string, SlotType> = {
-  // Saturday Night
-  SF: 'SNF',
-  SEA: 'SNF',
-
-  // Sunday Night Football
-  BAL: 'SNF',
-  PIT: 'SNF',
-};
-
 interface PrimetimeResult {
   signals: EdgeSignal[];
   summary: string;
@@ -56,15 +47,21 @@ interface PrimetimeResult {
 
 /**
  * Detect primetime performance edge
+ * Now uses dynamic schedule from ESPN API to detect primetime games
  */
-export function detectPrimetimeEdge(
+export async function detectPrimetimeEdge(
   player: Player,
   week: number
-): PrimetimeResult {
+): Promise<PrimetimeResult> {
   const signals: EdgeSignal[] = [];
 
-  const slotType = player.team ? PRIMETIME_GAMES[player.team] || 'regular' : 'regular';
-  const isPrimetime = slotType !== 'regular';
+  // Use dynamic schedule to detect primetime games
+  const primetimeInfo = player.team
+    ? await isPrimetimeGame(player.team, week)
+    : { isPrimetime: false };
+
+  const slotType: SlotType = primetimeInfo.slot || 'regular';
+  const isPrimetime = primetimeInfo.isPrimetime;
 
   if (!isPrimetime) {
     return {
@@ -100,12 +97,15 @@ export function detectPrimetimeEdge(
       playerId: player.id,
       week,
       impact: isPositive ? 'positive' : 'negative',
-      magnitude: isPositive ? Math.min(3, absPctDiff / 10) : -Math.min(3, absPctDiff / 10),
+      magnitude: isPositive
+        ? Math.min(3, absPctDiff / 10)
+        : -Math.min(3, absPctDiff / 10),
       confidence: Math.min(75, 50 + primetimeGames * 4),
       shortDescription: isPositive
         ? `Primetime star: +${absPctDiff.toFixed(0)}% in ${slotType} games`
         : `Primetime fader: -${absPctDiff.toFixed(0)}% in ${slotType} games`,
-      details: `${player.name} averages ${primetimeAvg.toFixed(1)} PPG in primetime vs ${regularAvg.toFixed(1)} PPG in regular slots. ` +
+      details:
+        `${player.name} averages ${primetimeAvg.toFixed(1)} PPG in primetime vs ${regularAvg.toFixed(1)} PPG in regular slots. ` +
         `Based on ${primetimeGames} primetime games this season. ` +
         `${isPositive ? 'Expect elevated production under the lights.' : 'Historically struggles in primetime spots.'}`,
       source: 'primetime-performance',

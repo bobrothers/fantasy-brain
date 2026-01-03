@@ -1,26 +1,20 @@
 /**
  * Rest Advantage Edge Detector
  *
- * Detects rest advantages from bye weeks.
+ * Detects rest advantages from bye weeks and game timing.
  * Team coming off bye vs opponent who played = edge.
+ * TNF teams get extra rest, MNF teams get less.
  *
  * Research basis:
  * - Teams off bye week win ~54% of games
  * - Extra rest = fresher legs, more prep time
  * - Especially impacts older players and teams with injuries
+ *
+ * Now uses dynamic schedule from ESPN API to calculate rest days.
  */
 
 import type { EdgeSignal, Player } from '../../types';
-
-// Week 17 bye teams (for Week 18 rest advantage)
-// In 2025, no byes in Week 17/18 but keeping structure for flexibility
-const WEEK_17_BYE_TEAMS: string[] = [];
-
-// Teams that played Thursday Night in Week 17 (short rest)
-const WEEK_17_TNF_TEAMS: string[] = [];
-
-// Teams that played Monday Night in Week 17 (less rest)
-const WEEK_17_MNF_TEAMS: string[] = [];
+import { getSchedule, getByeTeams } from '../schedule';
 
 interface RestAdvantageResult {
   signals: EdgeSignal[];
@@ -31,29 +25,45 @@ interface RestAdvantageResult {
 }
 
 /**
- * Calculate approximate rest days based on previous week schedule
+ * Calculate rest days based on previous week's game date
+ * Uses dynamic schedule from ESPN API
  */
-function getRestDays(team: string): number {
-  if (WEEK_17_BYE_TEAMS.includes(team)) {
+async function getRestDays(
+  team: string,
+  currentWeek: number,
+  currentGameDate: Date
+): Promise<number> {
+  // Check if team was on bye last week
+  const byeTeams = await getByeTeams(currentWeek - 1);
+  if (byeTeams.includes(team)) {
     return 14; // Two weeks rest
   }
-  if (WEEK_17_MNF_TEAMS.includes(team)) {
-    return 6; // Monday to Sunday
+
+  // Get previous week's schedule to find game date
+  const prevSchedule = await getSchedule(currentWeek - 1);
+  const prevGame = prevSchedule.get(team);
+
+  if (!prevGame || !prevGame.date) {
+    return 7; // Default to standard rest if no data
   }
-  if (WEEK_17_TNF_TEAMS.includes(team)) {
-    return 10; // Thursday to Sunday
-  }
-  return 7; // Standard Sunday to Sunday
+
+  // Calculate days between previous game and current game
+  const prevGameDate = new Date(prevGame.date);
+  const diffMs = currentGameDate.getTime() - prevGameDate.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  return Math.max(3, Math.min(14, diffDays)); // Clamp to reasonable range
 }
 
 /**
  * Detect rest advantage edge
+ * Now uses dynamic schedule from ESPN API
  */
-export function detectRestAdvantageEdge(
+export async function detectRestAdvantageEdge(
   player: Player,
   opponentTeam: string,
   week: number
-): RestAdvantageResult {
+): Promise<RestAdvantageResult> {
   const signals: EdgeSignal[] = [];
 
   if (!player.team) {
@@ -66,12 +76,18 @@ export function detectRestAdvantageEdge(
     };
   }
 
-  const teamRest = getRestDays(player.team);
-  const oppRest = getRestDays(opponentTeam);
+  // Get current week's game date for this team
+  const schedule = await getSchedule(week);
+  const gameInfo = schedule.get(player.team);
+  const currentGameDate = gameInfo?.date ? new Date(gameInfo.date) : new Date();
+
+  // Calculate rest days for both teams
+  const teamRest = await getRestDays(player.team, week, currentGameDate);
+  const oppRest = await getRestDays(opponentTeam, week, currentGameDate);
   const restDiff = teamRest - oppRest;
 
-  // No advantage in Week 18 typically (no byes)
-  if (restDiff === 0) {
+  // No significant advantage
+  if (Math.abs(restDiff) < 1) {
     return {
       signals: [],
       summary: 'Equal rest',

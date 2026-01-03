@@ -1,9 +1,9 @@
 /**
  * Revenge Games Edge Detector
- * 
+ *
  * Identifies players facing their former teams.
  * Revenge games show statistically significant performance bumps.
- * 
+ *
  * Research basis:
  * - Players average 12-15% higher fantasy scoring vs former teams
  * - Effect is strongest in first meeting after departure
@@ -12,6 +12,7 @@
  */
 
 import type { EdgeSignal, Player } from '../../types';
+import { getSchedule } from '../schedule';
 
 interface RevengeGame {
   playerId: string;
@@ -108,26 +109,6 @@ const REVENGE_GAMES: RevengeGame[] = [
   // Add more as needed
 ];
 
-// Week 18 matchups for checking if revenge game is active
-const WEEK_18_MATCHUPS: Record<string, string> = {
-  CAR: 'TB', TB: 'CAR',
-  SEA: 'SF', SF: 'SEA',
-  NO: 'ATL', ATL: 'NO',
-  TEN: 'JAX', JAX: 'TEN',
-  IND: 'HOU', HOU: 'IND',
-  CLE: 'CIN', CIN: 'CLE',
-  GB: 'MIN', MIN: 'GB',
-  DAL: 'NYG', NYG: 'DAL',
-  NYJ: 'BUF', BUF: 'NYJ',
-  ARI: 'LAR', LAR: 'ARI',
-  DET: 'CHI', CHI: 'DET',
-  KC: 'LV', LV: 'KC',
-  LAC: 'DEN', DEN: 'LAC',
-  MIA: 'NE', NE: 'MIA',
-  WAS: 'PHI', PHI: 'WAS',
-  BAL: 'PIT', PIT: 'BAL',
-};
-
 interface RevengeGameResult {
   signals: EdgeSignal[];
   summary: string;
@@ -137,19 +118,21 @@ interface RevengeGameResult {
 
 /**
  * Detect revenge game edge for a player
+ * Now uses dynamic schedule from ESPN API
  */
-export function detectRevengeGameEdge(
+export async function detectRevengeGameEdge(
   player: Player,
   week: number
-): RevengeGameResult {
+): Promise<RevengeGameResult> {
   const signals: EdgeSignal[] = [];
-  
+
   // Find if player has a revenge game scenario
-  const revenge = REVENGE_GAMES.find(r => 
-    r.playerName.toLowerCase() === player.name.toLowerCase() ||
-    r.playerId === player.id
+  const revenge = REVENGE_GAMES.find(
+    r =>
+      r.playerName.toLowerCase() === player.name.toLowerCase() ||
+      r.playerId === player.id
   );
-  
+
   if (!revenge) {
     return {
       signals: [],
@@ -157,38 +140,40 @@ export function detectRevengeGameEdge(
       isRevengeGame: false,
     };
   }
-  
-  // Check if this week's opponent is the former team
+
+  // Get dynamic schedule for this week
+  const schedule = await getSchedule(week);
   const currentTeam = player.team || revenge.currentTeam;
-  const opponent = WEEK_18_MATCHUPS[currentTeam];
-  
-  if (opponent !== revenge.formerTeam) {
+  const gameInfo = schedule.get(currentTeam);
+  const opponent = gameInfo?.opponent;
+
+  if (!opponent || opponent !== revenge.formerTeam) {
     return {
       signals: [],
       summary: 'Revenge game vs ' + revenge.formerTeam + ' (not this week)',
       isRevengeGame: false,
     };
   }
-  
+
   // This is an active revenge game!
   let magnitude = 2;
   let confidence = 70;
-  
+
   // Boost for bitter departures
   if (revenge.bitterDeparture) {
     magnitude += 1;
     confidence += 5;
   }
-  
+
   // Boost for first-year revenge (freshest wounds)
   if (revenge.yearsDeparted === 1) {
     magnitude += 1;
     confidence += 5;
   }
-  
+
   // Cap magnitude
   magnitude = Math.min(4, magnitude);
-  
+
   signals.push({
     type: 'matchup_defense', // Reusing - affects matchup motivation
     playerId: player.id,
@@ -197,18 +182,32 @@ export function detectRevengeGameEdge(
     magnitude,
     confidence,
     shortDescription: 'REVENGE GAME vs ' + revenge.formerTeam,
-    details: player.name + ' faces former team ' + revenge.formerTeam + '. ' +
-      'Left via ' + revenge.circumstances.replace('_', ' ') + ' ' + revenge.yearsDeparted + ' year(s) ago. ' +
-      (revenge.bitterDeparture ? 'Departure was acrimonious - extra motivation. ' : '') +
-      (revenge.notes || '') + ' ' +
+    details:
+      player.name +
+      ' faces former team ' +
+      revenge.formerTeam +
+      '. ' +
+      'Left via ' +
+      revenge.circumstances.replace('_', ' ') +
+      ' ' +
+      revenge.yearsDeparted +
+      ' year(s) ago. ' +
+      (revenge.bitterDeparture
+        ? 'Departure was acrimonious - extra motivation. '
+        : '') +
+      (revenge.notes || '') +
+      ' ' +
       'Revenge games historically produce 12-15% fantasy scoring bumps.',
     source: 'revenge-games',
     timestamp: new Date(),
   });
-  
+
   return {
     signals,
-    summary: 'REVENGE GAME vs ' + revenge.formerTeam + (revenge.bitterDeparture ? ' (bitter)' : ''),
+    summary:
+      'REVENGE GAME vs ' +
+      revenge.formerTeam +
+      (revenge.bitterDeparture ? ' (bitter)' : ''),
     isRevengeGame: true,
     revengeDetails: revenge,
   };
@@ -216,19 +215,22 @@ export function detectRevengeGameEdge(
 
 /**
  * Get all active revenge games for a given week
+ * Now uses dynamic schedule from ESPN API
  */
-export function getActiveRevengeGames(): RevengeGame[] {
+export async function getActiveRevengeGames(week?: number): Promise<RevengeGame[]> {
+  const schedule = await getSchedule(week);
   return REVENGE_GAMES.filter(r => {
-    const opponent = WEEK_18_MATCHUPS[r.currentTeam];
-    return opponent === r.formerTeam;
+    const gameInfo = schedule.get(r.currentTeam);
+    return gameInfo?.opponent === r.formerTeam;
   });
 }
 
 /**
  * Get bitter revenge games (highest motivation)
  */
-export function getBitterRevengeGames(): RevengeGame[] {
-  return getActiveRevengeGames().filter(r => r.bitterDeparture);
+export async function getBitterRevengeGames(week?: number): Promise<RevengeGame[]> {
+  const active = await getActiveRevengeGames(week);
+  return active.filter(r => r.bitterDeparture);
 }
 
 export default {

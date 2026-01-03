@@ -14,10 +14,9 @@
 - [ ] Start/sit recommendations based on edge scores
 
 ### Data Quality
-- [ ] Replace hardcoded defense rankings with live source
+- [ ] Replace hardcoded defense rankings with live source (FantasyPros/NFL.com)
 - [ ] Build home/away splits from nflfastR historical data
-- [ ] Dynamic schedule fetching (currently hardcoded Week 18)
-- [ ] Expand revenge games database (currently ~5 players)
+- [ ] Expand revenge games database (currently ~7 players)
 
 ## Future Ideas
 
@@ -36,3 +35,4 @@
 - [x] ACCEPT/REJECT verdict system with "gun to head" recommendation
 - [x] Position-specific age curves (RB decline at 27, WR peak 26-30)
 - [x] Edge factors extracted from real signals (no fabricated data)
+- [x] Dynamic schedule from ESPN API (supports any week)

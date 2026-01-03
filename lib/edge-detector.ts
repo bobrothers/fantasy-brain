@@ -1,11 +1,14 @@
 /**
  * Combined Edge Detector
+ *
+ * Now uses dynamic schedule from ESPN API instead of hardcoded Week 18 matchups.
  */
 
 import 'dotenv/config';
 
 import type { Player, EdgeSignal } from '../types';
 import { sleeper } from './providers/sleeper';
+import { getSchedule, getCurrentWeek } from './schedule';
 import { detectWeatherEdge } from './edge/weather-impact';
 import { detectTravelEdge } from './edge/travel-rest';
 import { detectOLInjuryEdge, getOLInjuryFantasyImpact } from './edge/ol-injury';
@@ -54,84 +57,41 @@ interface EdgeAnalysis {
   confidence: number;
 }
 
-interface GameInfo {
-  opponent: string;
-  isHome: boolean;
-  gameTime: string;
-}
-
-const WEEK_18_SCHEDULE: Record<string, GameInfo> = {
-  // Saturday games
-  CAR: { opponent: 'TB', isHome: false, gameTime: '2026-01-03T21:30:00Z' },
-  TB: { opponent: 'CAR', isHome: true, gameTime: '2026-01-03T21:30:00Z' },
-  SEA: { opponent: 'SF', isHome: false, gameTime: '2026-01-04T01:00:00Z' },
-  SF: { opponent: 'SEA', isHome: true, gameTime: '2026-01-04T01:00:00Z' },
-  
-  // Sunday 1pm ET games
-  NO: { opponent: 'ATL', isHome: false, gameTime: '2026-01-04T18:00:00Z' },
-  ATL: { opponent: 'NO', isHome: true, gameTime: '2026-01-04T18:00:00Z' },
-  TEN: { opponent: 'JAX', isHome: false, gameTime: '2026-01-04T18:00:00Z' },
-  JAX: { opponent: 'TEN', isHome: true, gameTime: '2026-01-04T18:00:00Z' },
-  IND: { opponent: 'HOU', isHome: false, gameTime: '2026-01-04T18:00:00Z' },
-  HOU: { opponent: 'IND', isHome: true, gameTime: '2026-01-04T18:00:00Z' },
-  CLE: { opponent: 'CIN', isHome: false, gameTime: '2026-01-04T18:00:00Z' },
-  CIN: { opponent: 'CLE', isHome: true, gameTime: '2026-01-04T18:00:00Z' },
-  GB: { opponent: 'MIN', isHome: false, gameTime: '2026-01-04T18:00:00Z' },
-  MIN: { opponent: 'GB', isHome: true, gameTime: '2026-01-04T18:00:00Z' },
-  DAL: { opponent: 'NYG', isHome: false, gameTime: '2026-01-04T18:00:00Z' },
-  NYG: { opponent: 'DAL', isHome: true, gameTime: '2026-01-04T18:00:00Z' },
-  
-  // Sunday 4:25pm ET games
-  NYJ: { opponent: 'BUF', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  BUF: { opponent: 'NYJ', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  ARI: { opponent: 'LAR', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  LAR: { opponent: 'ARI', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  DET: { opponent: 'CHI', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  CHI: { opponent: 'DET', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  KC: { opponent: 'LV', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  LV: { opponent: 'KC', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  LAC: { opponent: 'DEN', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  DEN: { opponent: 'LAC', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  MIA: { opponent: 'NE', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  NE: { opponent: 'MIA', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  WAS: { opponent: 'PHI', isHome: false, gameTime: '2026-01-04T21:25:00Z' },
-  PHI: { opponent: 'WAS', isHome: true, gameTime: '2026-01-04T21:25:00Z' },
-  
-  // Sunday Night
-  BAL: { opponent: 'PIT', isHome: false, gameTime: '2026-01-05T01:20:00Z' },
-  PIT: { opponent: 'BAL', isHome: true, gameTime: '2026-01-05T01:20:00Z' },
-};
-
 export async function analyzePlayer(
   playerIdOrName: string,
-  week: number = 18
+  week?: number
 ): Promise<EdgeAnalysis | null> {
-  
+  // Get current week dynamically if not specified
+  const targetWeek = week ?? (await getCurrentWeek()).week;
+
   const players = await sleeper.getAllPlayers();
   let player: Player | undefined;
-  
+
   player = players.get(playerIdOrName);
-  
+
   if (!player) {
     const searchName = playerIdOrName.toLowerCase();
-    player = Array.from(players.values()).find(p => 
+    player = Array.from(players.values()).find(p =>
       p.name.toLowerCase().includes(searchName)
     );
   }
-  
+
   if (!player) {
     console.error('Player not found: ' + playerIdOrName);
     return null;
   }
-  
+
   if (!player.team) {
     console.error('Player ' + player.name + ' has no team');
     return null;
   }
-  
-  const gameInfo = WEEK_18_SCHEDULE[player.team];
+
+  // Get dynamic schedule from ESPN API
+  const schedule = await getSchedule(targetWeek);
+  const gameInfo = schedule.get(player.team);
+
   if (!gameInfo) {
-    console.error('No game found for ' + player.team);
+    console.error('No game found for ' + player.team + ' in week ' + targetWeek);
     return null;
   }
   
@@ -153,114 +113,141 @@ export async function analyzePlayer(
     restAdvantage: '',
     indoorOutdoor: '',
   };
-  
+
+  // Use date from schedule (or fallback to current time)
+  const gameTime = gameInfo.date || new Date().toISOString();
+
   console.log('  Checking weather...');
   const weatherResult = await detectWeatherEdge(
-    player, gameInfo.opponent, gameInfo.isHome, gameInfo.gameTime, week
+    player,
+    gameInfo.opponent,
+    gameInfo.isHome,
+    gameTime,
+    targetWeek
   );
   allSignals.push(...weatherResult.signals);
   summaries.weather = weatherResult.summary;
-  
+
   console.log('  Checking travel/rest...');
   const travelResult = detectTravelEdge(
-    { team: player.team, opponentTeam: gameInfo.opponent, isHome: gameInfo.isHome, gameTime: gameInfo.gameTime },
-    week
+    {
+      team: player.team,
+      opponentTeam: gameInfo.opponent,
+      isHome: gameInfo.isHome,
+      gameTime: gameTime,
+    },
+    targetWeek
   );
   allSignals.push(...travelResult.signals);
   summaries.travel = travelResult.summary;
-  
+
   console.log('  Checking OL injuries...');
-  const olResult = await detectOLInjuryEdge(player.team, week);
+  const olResult = await detectOLInjuryEdge(player.team, targetWeek);
   const playerOLSignals = olResult.signals.map(s => ({ ...s, playerId: player!.id }));
   allSignals.push(...playerOLSignals);
   summaries.olInjury = olResult.summary;
-  
+
   console.log('  Checking betting signals...');
-  const bettingResult = await detectBettingEdge(player.team, week);
-  const playerBettingSignals = bettingResult.signals.map(s => ({ ...s, playerId: player!.id }));
+  const bettingResult = await detectBettingEdge(player.team, targetWeek);
+  const playerBettingSignals = bettingResult.signals.map(s => ({
+    ...s,
+    playerId: player!.id,
+  }));
   allSignals.push(...playerBettingSignals);
   summaries.betting = bettingResult.summary;
-  
+
   // 5. Defense vs Position matchup
   console.log('  Checking defense matchup...');
-  const defMatchupResult = detectDefenseMatchupEdge(player, gameInfo.opponent, week);
+  const defMatchupResult = detectDefenseMatchupEdge(player, gameInfo.opponent, targetWeek);
   allSignals.push(...defMatchupResult.signals);
   summaries.defenseMatchup = defMatchupResult.summary;
-  
+
   // 6. Opposing Defense Injuries
   console.log('  Checking opposing D injuries...');
-  const oppDefResult = await detectOpposingDefenseEdge(player, gameInfo.opponent, week);
+  const oppDefResult = await detectOpposingDefenseEdge(player, gameInfo.opponent, targetWeek);
   allSignals.push(...oppDefResult.signals);
   summaries.opposingDInjuries = oppDefResult.summary;
-  
+
   // 7. Usage Trends (async - uses nflfastR data)
   console.log('  Checking usage trends...');
-  const usageResult = await detectUsageTrendEdge(player, week);
+  const usageResult = await detectUsageTrendEdge(player, targetWeek);
   allSignals.push(...usageResult.signals);
   summaries.usageTrends = usageResult.summary;
-  
+
   // 8. Contract Incentives
   console.log('  Checking contract incentives...');
-  const incentiveResult = detectContractIncentiveEdge(player, week);
+  const incentiveResult = detectContractIncentiveEdge(player, targetWeek);
   allSignals.push(...incentiveResult.signals);
   summaries.contractIncentive = incentiveResult.summary;
-  
-  // 9. Revenge Games
+
+  // 9. Revenge Games (now async)
   console.log('  Checking revenge games...');
-  const revengeResult = detectRevengeGameEdge(player, week);
+  const revengeResult = await detectRevengeGameEdge(player, targetWeek);
   allSignals.push(...revengeResult.signals);
   summaries.revengeGame = revengeResult.summary;
-  
+
   // 10. Red Zone Usage
   console.log('  Checking red zone usage...');
-  const rzResult = detectRedZoneEdge(player, week);
+  const rzResult = detectRedZoneEdge(player, targetWeek);
   allSignals.push(...rzResult.signals);
   summaries.redZone = rzResult.summary;
 
   // 11. Home/Away Splits
   console.log('  Checking home/away splits...');
-  const homeAwayResult = detectHomeAwaySplitEdge(player, gameInfo.isHome, week);
+  const homeAwayResult = detectHomeAwaySplitEdge(player, gameInfo.isHome, targetWeek);
   allSignals.push(...homeAwayResult.signals);
   summaries.homeAway = homeAwayResult.summary;
 
-  // 12. Primetime Performance
+  // 12. Primetime Performance (now async)
   console.log('  Checking primetime performance...');
-  const primetimeResult = detectPrimetimeEdge(player, week);
+  const primetimeResult = await detectPrimetimeEdge(player, targetWeek);
   allSignals.push(...primetimeResult.signals);
   summaries.primetime = primetimeResult.summary;
 
   // 13. Division Rivalry
   console.log('  Checking division rivalry...');
-  const divisionResult = detectDivisionRivalryEdge(player, gameInfo.opponent, week);
+  const divisionResult = detectDivisionRivalryEdge(player, gameInfo.opponent, targetWeek);
   allSignals.push(...divisionResult.signals);
   summaries.divisionRivalry = divisionResult.summary;
 
-  // 14. Rest Advantage
+  // 14. Rest Advantage (now async)
   console.log('  Checking rest advantage...');
-  const restResult = detectRestAdvantageEdge(player, gameInfo.opponent, week);
+  const restResult = await detectRestAdvantageEdge(player, gameInfo.opponent, targetWeek);
   allSignals.push(...restResult.signals);
   summaries.restAdvantage = restResult.summary;
 
   // 15. Indoor/Outdoor Splits
   console.log('  Checking indoor/outdoor splits...');
-  const indoorResult = detectIndoorOutdoorEdge(player, gameInfo.opponent, gameInfo.isHome, week);
+  const indoorResult = detectIndoorOutdoorEdge(
+    player,
+    gameInfo.opponent,
+    gameInfo.isHome,
+    targetWeek
+  );
   allSignals.push(...indoorResult.signals);
   summaries.indoorOutdoor = indoorResult.summary;
 
   const overallImpact = allSignals.reduce((sum, signal) => {
     const weight = signal.confidence / 100;
-    return sum + (signal.magnitude * weight);
+    return sum + signal.magnitude * weight;
   }, 0);
-  
-  const recommendation = generateRecommendation(player, allSignals, overallImpact, olResult, bettingResult);
-  
-  const avgConfidence = allSignals.length > 0
-    ? allSignals.reduce((sum, s) => sum + s.confidence, 0) / allSignals.length
-    : 70;
-  
+
+  const recommendation = generateRecommendation(
+    player,
+    allSignals,
+    overallImpact,
+    olResult,
+    bettingResult
+  );
+
+  const avgConfidence =
+    allSignals.length > 0
+      ? allSignals.reduce((sum, s) => sum + s.confidence, 0) / allSignals.length
+      : 70;
+
   return {
     player,
-    week,
+    week: targetWeek,
     signals: allSignals,
     summary: summaries,
     overallImpact: Math.round(overallImpact * 10) / 10,
@@ -413,15 +400,19 @@ export function printAnalysis(analysis: EdgeAnalysis): void {
 
 export async function comparePlayers(
   playerNames: string[],
-  week: number = 18
+  week?: number
 ): Promise<void> {
-  console.log('\nComparing ' + playerNames.length + ' players for Week ' + week + '...\n');
-  
+  // Get current week dynamically if not specified
+  const targetWeek = week ?? (await getCurrentWeek()).week;
+  console.log(
+    '\nComparing ' + playerNames.length + ' players for Week ' + targetWeek + '...\n'
+  );
+
   const analyses: EdgeAnalysis[] = [];
-  
+
   for (const name of playerNames) {
     console.log('Analyzing ' + name + '...');
-    const analysis = await analyzePlayer(name, week);
+    const analysis = await analyzePlayer(name, targetWeek);
     if (analysis) {
       analyses.push(analysis);
     }

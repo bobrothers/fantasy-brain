@@ -12,7 +12,7 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 - **5 data providers** connected (Sleeper, Weather, ESPN, Odds API, nflfastR)
 - **Trade Analyzer** at /trade - Dynasty and Redraft modes with ACCEPT/REJECT verdicts
 - **Waiver Wire Scanner** at /waivers - Real trending data from Sleeper API
-- **Week 18 2025** schedule and data
+- **Dynamic schedule** from ESPN API (supports any week, not just Week 18)
 
 ### Features
 
@@ -59,12 +59,11 @@ npm run test-providers                   # Verify API connections
 | indoor-outdoor-splits | Hardcoded | ⚠️ Sample data |
 
 ### Known Issues
-1. Defense rankings are approximate, not from live source
-2. Home/away, primetime, indoor/outdoor splits use sample data (needs nflfastR historical)
-3. Revenge games only has ~5 players hardcoded
+1. Defense rankings are approximate, not from live source (uses end-of-season 2024-25 data)
+2. Home/away, primetime, indoor/outdoor splits use sample performance data
+3. Revenge games only has ~7 players hardcoded
 4. Contract incentives limited to manually researched players
-5. Schedule is hardcoded for Week 18 2025 only
-6. Usage trends shows "N/A" for QBs (by design - no target/carry share)
+5. Usage trends shows "N/A" for QBs (by design - no target/carry share)
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
@@ -104,6 +103,7 @@ npm run test-providers                   # Verify API connections
   /providers/       # sleeper.ts, espn.ts, weather.ts, odds.ts, nflfastr.ts
   /edge/            # 15 edge detector modules
   /trade/           # dynasty-value.ts, redraft-value.ts
+  schedule.ts       # Dynamic schedule service (ESPN API)
   edge-detector.ts  # Main orchestrator
 /types/             # TypeScript interfaces
 /data/nflfastr/     # Cached CSV data (gitignored)

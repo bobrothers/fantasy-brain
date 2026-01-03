@@ -1,19 +1,25 @@
 /**
  * Defense vs Position Edge Detector
- * 
+ *
  * Analyzes how opposing defenses perform against specific positions.
  * A defense that's weak vs. RBs = boost for opposing RBs.
  * A defense that's elite vs. WRs = downgrade for opposing WRs.
- * 
+ *
  * ⚠️ DATA DISCLAIMER: The defense rankings below are APPROXIMATE.
- * Based on general 2025 season trends but not pulled from a live source.
- * Directionally useful but verify with ESPN/Yahoo rankings for exact numbers.
- * In production, this would fetch from ESPN Fantasy API or similar.
- * 
+ * Based on 2024-2025 season trends but not pulled from a live source.
+ * Directionally useful but verify with ESPN/Yahoo/FantasyPros for exact numbers.
+ *
+ * TODO: Integrate live defense rankings from:
+ * - FantasyPros API: https://www.fantasypros.com/nfl/points-allowed.php
+ * - NFL.com Fantasy: https://fantasy.nfl.com/research/pointsagainst
+ * - Calculate from nflfastR play-by-play with opponent context
+ *
  * Research basis:
  * - Matchup data has ~15-20% predictive value for fantasy scoring
  * - More useful for identifying extreme matchups than average ones
  * - RB matchups matter more than WR matchups (game script dependent)
+ *
+ * Last updated: January 2026 (approximate end-of-season rankings)
  */
 
 import type { EdgeSignal, Player } from '../../types';

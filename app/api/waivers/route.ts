@@ -5,6 +5,7 @@
  * - Sleeper trending API for roster %/availability proxy
  * - Sleeper player data for team, position, injury status
  * - Actual edge detector for edge scores
+ * - Dynamic schedule from ESPN API (no hardcoded matchups)
  *
  * NO hardcoded guesses or fabricated data.
  */
@@ -12,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sleeper } from '@/lib/providers/sleeper';
 import edgeDetector from '@/lib/edge-detector';
+import { getSchedule, getCurrentWeek, getMatchupString } from '@/lib/schedule';
 
 interface WaiverTarget {
   player: {
@@ -28,32 +30,18 @@ interface WaiverTarget {
   matchup: string;
 }
 
-// Week 18 schedule - this is factual
-const WEEK_18_SCHEDULE: Record<string, { opponent: string; isHome: boolean }> = {
-  CAR: { opponent: 'TB', isHome: false }, TB: { opponent: 'CAR', isHome: true },
-  SEA: { opponent: 'SF', isHome: false }, SF: { opponent: 'SEA', isHome: true },
-  NO: { opponent: 'ATL', isHome: false }, ATL: { opponent: 'NO', isHome: true },
-  TEN: { opponent: 'JAX', isHome: false }, JAX: { opponent: 'TEN', isHome: true },
-  IND: { opponent: 'HOU', isHome: false }, HOU: { opponent: 'IND', isHome: true },
-  CLE: { opponent: 'CIN', isHome: false }, CIN: { opponent: 'CLE', isHome: true },
-  GB: { opponent: 'MIN', isHome: false }, MIN: { opponent: 'GB', isHome: true },
-  DAL: { opponent: 'NYG', isHome: false }, NYG: { opponent: 'DAL', isHome: true },
-  NYJ: { opponent: 'BUF', isHome: false }, BUF: { opponent: 'NYJ', isHome: true },
-  ARI: { opponent: 'LAR', isHome: false }, LAR: { opponent: 'ARI', isHome: true },
-  DET: { opponent: 'CHI', isHome: false }, CHI: { opponent: 'DET', isHome: true },
-  KC: { opponent: 'LV', isHome: false }, LV: { opponent: 'KC', isHome: true },
-  LAC: { opponent: 'DEN', isHome: false }, DEN: { opponent: 'LAC', isHome: true },
-  MIA: { opponent: 'NE', isHome: false }, NE: { opponent: 'MIA', isHome: true },
-  WAS: { opponent: 'PHI', isHome: false }, PHI: { opponent: 'WAS', isHome: true },
-  BAL: { opponent: 'PIT', isHome: false }, PIT: { opponent: 'BAL', isHome: true },
-};
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const position = searchParams.get('position') || 'ALL';
   const limit = parseInt(searchParams.get('limit') || '15');
 
   try {
+    // Get current week dynamically from ESPN
+    const { week: currentWeek } = await getCurrentWeek();
+
+    // Get dynamic schedule for this week
+    const schedule = await getSchedule(currentWeek);
+
     // 1. Get REAL trending adds from Sleeper (players being added = likely available)
     const trendingAdds = await sleeper.getTrendingPlayers('add', 24, 50);
 
@@ -96,7 +84,7 @@ export async function GET(request: NextRequest) {
       let keyFactors: string[] = [];
 
       try {
-        const analysis = await edgeDetector.analyzePlayer(player.name, 18);
+        const analysis = await edgeDetector.analyzePlayer(player.name, currentWeek);
 
         if (analysis) {
           edgeScore = analysis.overallImpact;
@@ -124,10 +112,10 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // Get matchup info
-      const schedule = WEEK_18_SCHEDULE[player.team!];
-      const matchup = schedule
-        ? `${schedule.isHome ? 'vs' : '@'} ${schedule.opponent}`
+      // Get matchup info from dynamic schedule
+      const gameInfo = schedule.get(player.team!);
+      const matchup = gameInfo
+        ? `${gameInfo.isHome ? 'vs' : '@'} ${gameInfo.opponent}`
         : 'BYE';
 
       // Hidden gem = high adds (people want them) + positive edge
@@ -157,12 +145,12 @@ export async function GET(request: NextRequest) {
     const limitedTargets = targets.slice(0, limit);
 
     return NextResponse.json({
-      week: 18,
+      week: currentWeek,
       position,
       targets: limitedTargets,
       hiddenGems: limitedTargets.filter(t => t.isHiddenGem),
       totalFound: targets.length,
-      dataSource: 'Sleeper trending API + real edge detection',
+      dataSource: 'Sleeper trending API + real edge detection + ESPN schedule',
     });
   } catch (error) {
     console.error('Waivers error:', error);
