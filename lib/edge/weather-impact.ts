@@ -241,12 +241,16 @@ export async function detectWeatherEdge(
     });
   }
   
-  // Generate summary
-  const impactSignals = signals.filter(s => s.impact === 'negative');
+  // Generate summary - include cold weather even if marked neutral
+  const impactSignals = signals.filter(s => s.impact === 'negative' || s.type === 'weather_cold');
   let summary: string;
-  
+
   if (impactSignals.length === 0) {
     summary = 'No significant weather concerns';
+  } else if (impactSignals.every(s => s.impact === 'neutral')) {
+    // Only neutral signals (e.g., mild cold)
+    const concerns = impactSignals.map(s => s.shortDescription).join(', ');
+    summary = concerns;
   } else {
     const concerns = impactSignals.map(s => s.shortDescription.split(':')[0]).join(', ');
     const totalMagnitude = impactSignals.reduce((sum, s) => sum + Math.abs(s.magnitude), 0);

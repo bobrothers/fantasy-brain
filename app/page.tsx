@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import PlayerAutocomplete from '@/components/PlayerAutocomplete';
 import LockTimer from '@/components/LockTimer';
 import UsageTrendChart from '@/components/UsageTrendChart';
+import ColdWeatherPerformance from '@/components/ColdWeatherPerformance';
 
 interface EdgeSignal {
   type: string;
@@ -347,6 +348,9 @@ export default function Home() {
               playerName={result.player.name}
               position={result.player.position}
             />
+
+            {/* Cold Weather Performance */}
+            <ColdWeatherPerformance playerName={result.player.name} />
 
             {/* Legend */}
             <div className="flex items-center gap-6 text-xs text-zinc-500 mb-2">

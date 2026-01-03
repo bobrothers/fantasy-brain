@@ -661,6 +661,128 @@ export const sleeper = {
       total: rankings.length,
     };
   },
+
+  /**
+   * Get player's cold weather performance (games at outdoor cold-weather stadiums, weeks 10+)
+   * Returns fantasy points comparison: cold games vs all games
+   */
+  async getColdWeatherPerformance(playerName: string): Promise<{
+    coldGames: Array<{ week: number; opponent: string; points: number; isHome: boolean }>;
+    avgColdPoints: number;
+    avgAllPoints: number;
+    coldGameCount: number;
+    allGameCount: number;
+    differential: number;
+  } | null> {
+    // Cold-weather outdoor stadiums (likely <40°F in weeks 10+)
+    const COLD_STADIUMS = new Set([
+      'BUF', 'NE', 'NYJ', 'NYG', // Northeast
+      'CLE', 'PIT', 'CIN', 'BAL', // Midwest/Mid-Atlantic
+      'GB', 'CHI', // Upper Midwest
+      'DEN', 'KC', // Mountain/Plains
+      'PHI', 'WAS', // Mid-Atlantic
+    ]);
+
+    // Get player info
+    const player = await this.getPlayerByName(playerName);
+    if (!player || !player.team) return null;
+
+    const playerId = player.id;
+    const team = player.team;
+
+    // Get NFL state for current season
+    const nflState = await this.getNflState();
+    const season = parseInt(nflState.season);
+    const currentWeek = nflState.week;
+
+    // Fetch schedule for weeks 10+ to determine cold games accurately
+    const schedule = new Map<number, { opponent: string; isHome: boolean; venue: string }>();
+
+    // Use ESPN for schedule data
+    for (let week = 10; week <= currentWeek; week++) {
+      try {
+        const schedUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`;
+        const schedResp = await fetch(schedUrl);
+        if (!schedResp.ok) continue;
+        const schedData = await schedResp.json();
+
+        for (const event of schedData.events || []) {
+          const homeTeam = event.competitions?.[0]?.competitors?.find((c: { homeAway: string }) => c.homeAway === 'home')?.team?.abbreviation;
+          const awayTeam = event.competitions?.[0]?.competitors?.find((c: { homeAway: string }) => c.homeAway === 'away')?.team?.abbreviation;
+
+          if (homeTeam === team) {
+            schedule.set(week, { opponent: awayTeam, isHome: true, venue: homeTeam });
+          } else if (awayTeam === team) {
+            schedule.set(week, { opponent: homeTeam, isHome: false, venue: homeTeam });
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    // Collect all game stats and identify cold games
+    const coldGames: Array<{ week: number; opponent: string; points: number; isHome: boolean }> = [];
+    const allGames: Array<{ week: number; points: number }> = [];
+
+    // Check weeks 1 through current week
+    for (let week = 1; week <= currentWeek; week++) {
+      try {
+        const url = `https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`;
+        const cached = cache.get(url);
+        let weekStats: Record<string, Record<string, number>>;
+
+        if (cached && cached.expires > Date.now()) {
+          weekStats = cached.data as Record<string, Record<string, number>>;
+        } else {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          weekStats = await response.json();
+          cache.set(url, { data: weekStats, expires: Date.now() + 60 * 60 * 1000 });
+        }
+
+        const playerStats = weekStats[playerId];
+        if (!playerStats || !playerStats.pts_ppr) continue;
+
+        const points = playerStats.pts_ppr;
+        allGames.push({ week, points });
+
+        // For weeks 10+, check if it was a cold game using schedule
+        if (week >= 10) {
+          const gameInfo = schedule.get(week);
+          if (gameInfo) {
+            const venue = gameInfo.venue;
+            if (COLD_STADIUMS.has(venue)) {
+              coldGames.push({
+                week,
+                opponent: gameInfo.opponent,
+                points,
+                isHome: gameInfo.isHome,
+              });
+            }
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (allGames.length === 0) return null;
+
+    const avgAllPoints = allGames.reduce((sum, g) => sum + g.points, 0) / allGames.length;
+    const avgColdPoints = coldGames.length > 0
+      ? coldGames.reduce((sum, g) => sum + g.points, 0) / coldGames.length
+      : avgAllPoints;
+
+    return {
+      coldGames,
+      avgColdPoints: Math.round(avgColdPoints * 10) / 10,
+      avgAllPoints: Math.round(avgAllPoints * 10) / 10,
+      coldGameCount: coldGames.length,
+      allGameCount: allGames.length,
+      differential: Math.round((avgColdPoints - avgAllPoints) * 10) / 10,
+    };
+  },
 };
 
 export default sleeper;
