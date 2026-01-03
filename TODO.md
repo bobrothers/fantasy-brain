@@ -46,10 +46,27 @@
 ## Completed (January 2026)
 
 ### This Session
+- [x] **Contract Analysis** - Comprehensive contract data for dynasty evaluations
+  - Contract status (elite/secure/tradeable/cuttable/expiring)
+  - Years remaining, dead cap, avg annual value
+  - Rookie deal surplus value detection
+  - Contract year motivation boost
+  - "Got the bag" decline risk warning
+  - Extension eligibility tracking
+- [x] **Situation Analysis Edge Detector** - New factors affecting player value
+  - QB stability (elite/locked/competition/uncertain/disaster)
+  - Target/touch competition (bellcow/lead/committee/backup)
+  - Coaching stability and scheme changes
+  - Draft capital invested (affects leash length)
+- [x] **Multi-Player Trades** - 2-for-1, 3-for-2 trade support
+  - Up to 4 players per side
+  - Sum values for trade packages
+  - Value breakdown display
 - [x] **Draft Pick Value Converter** - Add picks to dynasty trades
   - Picks 2026-2028, rounds 1-4, early/mid/late positions
   - Shows player equivalents: "2026 Mid 1st ≈ Mid WR2/RB2"
   - Prominent value display with large point score when selecting picks
+  - Hit rate context tooltip explaining the scoring
   - Future picks discounted (8-30% for uncertainty)
   - Multi-asset trades: player + picks combos with value breakdown
 - [x] **Coverage matchup edge** - man vs zone analysis from Sharp Football data

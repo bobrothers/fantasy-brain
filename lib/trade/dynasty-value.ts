@@ -2,15 +2,17 @@
  * Dynasty Trade Value Calculator
  *
  * Evaluates long-term player value for dynasty/keeper leagues.
- * Factors: age curves, injury history, situation stability, usage trends
+ * Factors: age curves, injury history, situation stability, usage trends, contract status
  *
  * DATA SOURCES:
  * - Age/experience from Sleeper API
  * - Injury history manually researched (major injuries only)
- * - Contract/situation data manually researched
+ * - Contract/situation data from Spotrac/Over The Cap
  */
 
 import type { Player } from '../../types';
+import { CONTRACT_DATA, getContractSummary, getContractRisk, ContractInfo } from '@/lib/data/contracts';
+import { analyzeSituation, SituationAnalysis } from '@/lib/edge/situation-analysis';
 
 // Position-specific age curves (peak years and decline rates)
 // Based on historical NFL data
@@ -444,12 +446,24 @@ export interface DynastyValue {
   breakoutScore: number;
   offenseScore: number;
   depthChartScore: number;
+  contractScore: number;
+  qbStabilityScore: number;
+  competitionScore: number;
   yearsOfEliteProduction: number;
   tier: 'elite' | 'high' | 'mid' | 'low' | 'avoid';
   draftCapital?: { round: number; pick: number; year: number };
   breakoutAge?: number;
   offensiveRanking?: number;
   depthThreat?: { name: string; level: string };
+  contract?: {
+    summary: string;
+    status: string;
+    risk: 'low' | 'medium' | 'high';
+    yearsRemaining: number;
+    isContractYear: boolean;
+    isRookieDeal: boolean;
+  };
+  situationAnalysis?: SituationAnalysis;
   factors: {
     positive: string[];
     negative: string[];
@@ -714,10 +728,116 @@ export function calculateDynastyValue(player: Player): DynastyValue {
     }
   }
 
-  // Calculate overall (adjusted weights - old max was 100, new max is 130)
+  // 8. Contract Score (0-15 points) - NEW
+  let contractScore = 8; // baseline
+  let contractInfo: DynastyValue['contract'] | undefined;
+  const contract = CONTRACT_DATA[player.name];
+
+  if (contract) {
+    const risk = getContractRisk(contract);
+    contractInfo = {
+      summary: getContractSummary(contract),
+      status: contract.status,
+      risk,
+      yearsRemaining: contract.yearsRemaining,
+      isContractYear: contract.contractYear,
+      isRookieDeal: contract.isRookieDeal,
+    };
+
+    // Status-based scoring
+    switch (contract.status) {
+      case 'elite':
+        contractScore = 15;
+        factors.positive.push(`CONTRACT: ${contract.yearsRemaining}yr/$${contract.avgAnnual}M/yr, $${contract.deadCap2025}M dead cap - LOCKED IN`);
+        break;
+      case 'secure':
+        contractScore = 12;
+        factors.positive.push(`CONTRACT: ${contract.yearsRemaining}yr remaining, $${contract.deadCap2025}M dead cap - SECURE`);
+        break;
+      case 'tradeable':
+        contractScore = 8;
+        factors.neutral.push(`CONTRACT: Moveable deal, could be traded`);
+        break;
+      case 'cuttable':
+        contractScore = 4;
+        factors.negative.push(`CONTRACT: Low dead cap ($${contract.deadCap2025}M) - CUTTABLE`);
+        break;
+      case 'expiring':
+        contractScore = 6;
+        factors.negative.push(`CONTRACT: Final year - future uncertain`);
+        break;
+    }
+
+    // Rookie deal bonus (surplus value)
+    if (contract.isRookieDeal && position !== 'QB') {
+      contractScore += 3;
+      factors.positive.push(`Rookie deal surplus value ($${contract.avgAnnual}M/yr)`);
+    }
+
+    // Contract year motivation
+    if (contract.contractYear) {
+      contractScore += 2;
+      factors.positive.push(`Contract year - playing for new deal`);
+    }
+
+    // Recently extended can mean "got the bag" risk
+    if (contract.recentlyExtended && !contract.isRookieDeal && contract.avgAnnual >= 20) {
+      contractScore -= 2;
+      factors.neutral.push(`Recently extended - watch for "got the bag" decline`);
+    }
+
+    // Extension eligible is upside
+    if (contract.extensionEligible && contract.isRookieDeal) {
+      factors.positive.push(`Extension eligible - could lock up long-term`);
+    }
+  }
+  contractScore = Math.max(0, Math.min(15, contractScore));
+
+  // 9. Situation Analysis Scores (QB Stability, Competition) - NEW
+  let qbStabilityScore = 5; // baseline
+  let competitionScore = 5; // baseline
+  const sitAnalysis = analyzeSituation(player);
+
+  // QB Stability (0-10 points) - affects WR/TE more than RB
+  if (sitAnalysis.qbStability) {
+    const qbImpact = sitAnalysis.qbStability.impact;
+    qbStabilityScore = Math.max(0, Math.min(10, 5 + qbImpact));
+
+    if (qbImpact >= 6) {
+      factors.positive.push(`QB: ${sitAnalysis.qbStability.description}`);
+    } else if (qbImpact <= -4) {
+      factors.negative.push(`QB: ${sitAnalysis.qbStability.description}`);
+    } else if (qbImpact !== 0) {
+      factors.neutral.push(`QB: ${sitAnalysis.qbStability.description}`);
+    }
+  }
+
+  // Competition Score (0-10 points)
+  if (sitAnalysis.competition) {
+    const compImpact = sitAnalysis.competition.impact;
+    competitionScore = Math.max(0, Math.min(10, 5 + compImpact));
+
+    const compStr = sitAnalysis.competition.competitors.slice(0, 2).join(', ');
+    if (compImpact >= 6) {
+      factors.positive.push(`Role: ${sitAnalysis.competition.role.toUpperCase()} - ${sitAnalysis.competition.description}`);
+    } else if (compImpact <= -2) {
+      factors.negative.push(`Role: ${sitAnalysis.competition.role} (vs ${compStr})`);
+    }
+  }
+
+  // Coaching change impact
+  if (sitAnalysis.coaching && sitAnalysis.coaching.schemeChange) {
+    if (sitAnalysis.coaching.impact < 0) {
+      factors.negative.push(`Coaching: ${sitAnalysis.coaching.description}`);
+    } else {
+      factors.neutral.push(`Coaching: ${sitAnalysis.coaching.description}`);
+    }
+  }
+
+  // Calculate overall (adjusted weights - new max is 160)
   // Normalize to 0-100 scale
-  const rawScore = ageScore + injuryScore + situationScore + draftCapitalScore + breakoutScore + offenseScore + depthChartScore;
-  const overallScore = Math.round((rawScore / 130) * 100);
+  const rawScore = ageScore + injuryScore + situationScore + draftCapitalScore + breakoutScore + offenseScore + depthChartScore + contractScore + qbStabilityScore + competitionScore;
+  const overallScore = Math.round((rawScore / 160) * 100);
 
   // Determine tier
   let tier: DynastyValue['tier'];
@@ -757,12 +877,17 @@ export function calculateDynastyValue(player: Player): DynastyValue {
     breakoutScore,
     offenseScore,
     depthChartScore,
+    contractScore,
+    qbStabilityScore,
+    competitionScore,
     yearsOfEliteProduction,
     tier,
     draftCapital: draftCapitalInfo,
     breakoutAge: breakoutAgeInfo,
     offensiveRanking: offensiveRankingInfo,
     depthThreat: depthThreatInfo,
+    contract: contractInfo,
+    situationAnalysis: sitAnalysis,
     factors,
     summary,
   };

@@ -24,12 +24,23 @@ interface DynastyValue {
   breakoutScore: number;
   offenseScore: number;
   depthChartScore: number;
+  contractScore: number;
+  qbStabilityScore: number;
+  competitionScore: number;
   yearsOfEliteProduction: number;
   tier: 'elite' | 'high' | 'mid' | 'low' | 'avoid';
   draftCapital?: { round: number; pick: number; year: number };
   breakoutAge?: number;
   offensiveRanking?: number;
   depthThreat?: { name: string; level: string };
+  contract?: {
+    summary: string;
+    status: string;
+    risk: 'low' | 'medium' | 'high';
+    yearsRemaining: number;
+    isContractYear: boolean;
+    isRookieDeal: boolean;
+  };
   factors: { positive: string[]; negative: string[]; neutral: string[] };
   summary: string;
 }
@@ -669,12 +680,46 @@ function PlayerCard({
             <ScoreBar label="Situation" score={dynasty.situationScore} max={35} />
           </div>
 
-          {/* Score breakdown - New metrics */}
+          {/* Contract Info - NEW */}
+          {dynasty.contract && (
+            <div className={`p-2 border text-xs ${
+              dynasty.contract.risk === 'low' ? 'border-emerald-700/50 bg-emerald-950/20' :
+              dynasty.contract.risk === 'medium' ? 'border-amber-700/50 bg-amber-950/20' :
+              'border-red-700/50 bg-red-950/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400 uppercase tracking-wider">Contract</span>
+                <span className={`font-bold ${
+                  dynasty.contract.risk === 'low' ? 'text-emerald-400' :
+                  dynasty.contract.risk === 'medium' ? 'text-amber-400' : 'text-red-400'
+                }`}>
+                  {dynasty.contract.status.toUpperCase()}
+                </span>
+              </div>
+              <div className="text-zinc-300 mt-1">{dynasty.contract.summary}</div>
+              {dynasty.contract.isContractYear && (
+                <div className="text-amber-400 mt-1">Playing for new deal</div>
+              )}
+              {dynasty.contract.isRookieDeal && (
+                <div className="text-emerald-400 mt-1">Rookie deal surplus value</div>
+              )}
+            </div>
+          )}
+
+          {/* Score breakdown - Situation */}
           <div className="space-y-2">
-            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Additional Factors</div>
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Situation Factors</div>
+            <ScoreBar label="Contract" score={dynasty.contractScore} max={15} />
+            <ScoreBar label="QB Stability" score={dynasty.qbStabilityScore} max={10} />
+            <ScoreBar label="Competition" score={dynasty.competitionScore} max={10} />
+            <ScoreBar label="Offense" score={dynasty.offenseScore} max={10} />
+          </div>
+
+          {/* Score breakdown - Development */}
+          <div className="space-y-2">
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Development</div>
             <ScoreBar label="Draft Cap" score={dynasty.draftCapitalScore} max={10} />
             <ScoreBar label="Breakout" score={dynasty.breakoutScore} max={10} />
-            <ScoreBar label="Offense" score={dynasty.offenseScore} max={10} />
             <ScoreBar label="Depth" score={dynasty.depthChartScore} max={10} />
           </div>
 
