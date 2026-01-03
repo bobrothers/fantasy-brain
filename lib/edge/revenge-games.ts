@@ -148,9 +148,10 @@ export async function detectRevengeGameEdge(
   const opponent = gameInfo?.opponent;
 
   if (!opponent || opponent !== revenge.formerTeam) {
+    // Not playing former team this week - show neutral summary
     return {
       signals: [],
-      summary: 'Revenge game vs ' + revenge.formerTeam + ' (not this week)',
+      summary: 'No revenge game narrative',
       isRevengeGame: false,
     };
   }
