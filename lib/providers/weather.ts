@@ -573,10 +573,14 @@ export const weather = {
 
       const data: OpenMeteoResponse = await response.json();
       
-      // Find the game start hour and check weather across full game (3 hours)
-      const gameHour = gameDate.getHours();
+      // Find the game start hour in stadium's timezone (API returns hours in that timezone)
+      // Use toLocaleString to convert to stadium timezone, then extract hour
+      const gameTimeInStadiumTZ = new Date(gameDate.toLocaleString('en-US', { timeZone: stadium.timezone }));
+      const gameHour = gameTimeInStadiumTZ.getHours();
+
       const startIndex = data.hourly.time.findIndex(t => {
-        const hour = new Date(t).getHours();
+        // API times are in stadium timezone, so we can compare directly
+        const hour = parseInt(t.split('T')[1].split(':')[0]);
         return hour === gameHour;
       });
 
