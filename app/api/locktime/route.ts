@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sleeper } from '@/lib/providers/sleeper';
 import { getSchedule, getCurrentWeek } from '@/lib/schedule';
+import { isConfirmedResting } from '@/lib/data/resting-players';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -34,8 +35,14 @@ export async function GET(request: NextRequest) {
       playerTeam = player.team;
       injuryStatus = player.injuryStatus;
 
-      // Check if player is resting
-      restingInfo = sleeper.isLikelyResting(player, week);
+      // Check confirmed resting list first (manual curation from news)
+      const confirmedResting = isConfirmedResting(playerName);
+      if (confirmedResting) {
+        restingInfo = { isResting: true, reason: confirmedResting.reason };
+      } else {
+        // Fall back to injury status heuristics
+        restingInfo = sleeper.isLikelyResting(player, week);
+      }
     }
 
     if (!playerTeam) {

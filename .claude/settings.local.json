@@ -15,7 +15,12 @@
       "Bash(gh auth login:*)",
       "Bash(gh repo create:*)",
       "Bash(npm install:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "WebSearch",
+      "Bash(npm run build:*)",
+      "Bash(git restore:*)"
     ]
   }
 }

@@ -20,6 +20,10 @@ interface AnalysisResult {
     position: string;
   };
   week: number;
+  resting?: {
+    isResting: boolean;
+    reason: string;
+  } | null;
   edges: {
     weather: { summary: string; signals: EdgeSignal[] };
     travel: { summary: string; signals: EdgeSignal[] };
@@ -193,6 +197,21 @@ export default function Home() {
         {/* Results */}
         {result && (
           <div className="space-y-6 animate-fadeIn">
+            {/* Resting Warning Banner */}
+            {result.resting?.isResting && (
+              <div className="bg-purple-950 border-2 border-purple-500 p-4 flex items-center gap-4">
+                <div className="text-4xl">⚠️</div>
+                <div>
+                  <div className="text-purple-300 font-bold text-lg uppercase tracking-wide">
+                    DO NOT START
+                  </div>
+                  <div className="text-purple-200">
+                    {result.resting.reason}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Player header */}
             <div className="bg-zinc-900 border border-zinc-800 p-6">
               <div className="flex items-start justify-between">

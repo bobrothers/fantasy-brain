@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import edgeDetector from '@/lib/edge-detector';
+import { isConfirmedResting } from '@/lib/data/resting-players';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,8 +18,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Helper to extract signals for a given type prefix
-    const getSignalsForType = (typePrefix: string) => 
+    const getSignalsForType = (typePrefix: string) =>
       result.signals.filter(s => s.type.startsWith(typePrefix));
+
+    // Check if player is confirmed resting
+    const restingInfo = isConfirmedResting(playerName);
 
     // Transform result into API-friendly format
     const response = {
@@ -91,10 +95,15 @@ export async function GET(request: NextRequest) {
         },
       },
       overall: {
-        impact: result.overallImpact,
-        confidence: result.confidence,
-        recommendation: result.recommendation,
+        impact: restingInfo ? -10 : result.overallImpact,
+        confidence: restingInfo ? 99 : result.confidence,
+        recommendation: restingInfo
+          ? `DO NOT START - ${restingInfo.reason}`
+          : result.recommendation,
       },
+      resting: restingInfo
+        ? { isResting: true, reason: restingInfo.reason }
+        : null,
     };
 
     return NextResponse.json(response);
