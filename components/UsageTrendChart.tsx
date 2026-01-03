@@ -82,10 +82,11 @@ export default function UsageTrendChart({ playerName, position }: Props) {
     return null;
   }
 
-  // Get the data points for the chart
-  const values = data.weeks.map(w =>
-    showCarryShare ? (w.carryShare || 0) : (w.targetShare || 0)
-  );
+  // Get the data points for the chart - round to 1 decimal to match display
+  const values = data.weeks.map(w => {
+    const raw = showCarryShare ? (w.carryShare || 0) : (w.targetShare || 0);
+    return Math.round(raw * 10) / 10; // Round to 1 decimal place
+  });
   const metric = showCarryShare ? 'Carry Share' : 'Target Share';
   const trend = showCarryShare ? data.carryTrend : data.targetTrend;
   const avg = showCarryShare ? data.avgCarryShare : data.avgTargetShare;
@@ -114,14 +115,6 @@ export default function UsageTrendChart({ playerName, position }: Props) {
   const pathD = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');
-
-  // Calculate arrow angle from last two points
-  const lastPoint = points[points.length - 1];
-  const secondLastPoint = points[points.length - 2];
-  const arrowAngle = Math.atan2(
-    lastPoint.y - secondLastPoint.y,
-    lastPoint.x - secondLastPoint.x
-  ) * (180 / Math.PI);
 
   // Trend styling
   const trendIcon = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '─';
@@ -164,17 +157,6 @@ export default function UsageTrendChart({ playerName, position }: Props) {
                 <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
                 <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
               </linearGradient>
-              {/* Arrow marker */}
-              <marker
-                id="arrowHead"
-                markerWidth="6"
-                markerHeight="6"
-                refX="5"
-                refY="3"
-                orient="auto"
-              >
-                <path d="M0,0 L6,3 L0,6 L1,3 Z" fill={lineColor} />
-              </marker>
             </defs>
 
             {/* Season average line */}
@@ -198,7 +180,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               fill="url(#areaGradient)"
             />
 
-            {/* Trend line with arrow */}
+            {/* Trend line */}
             <path
               d={pathD}
               fill="none"
@@ -206,20 +188,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              markerEnd="url(#arrowHead)"
             />
-
-            {/* Trend direction arrow at end */}
-            <g transform={`translate(${lastPoint.x + 8}, ${lastPoint.y}) rotate(${arrowAngle})`}>
-              <path
-                d="M0,-4 L8,0 L0,4"
-                fill="none"
-                stroke={lineColor}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </g>
 
             {/* Data points, week labels, and stats */}
             {points.map((p, i) => {
@@ -307,7 +276,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
                     fontWeight={isLast ? "bold" : "normal"}
                     opacity={hoveredPoint !== null && !isHovered ? 0.4 : 1}
                   >
-                    {pctValue?.toFixed(0)}%
+                    {pctValue?.toFixed(1)}%
                   </text>
                   <text
                     x={p.x}
