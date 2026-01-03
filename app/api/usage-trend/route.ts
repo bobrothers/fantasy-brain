@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       ...trendData,
       teamRank: teamRankData?.rank,
       teamTotal: teamRankData?.total,
+      season: trendData.season,
     });
   } catch (error) {
     console.error('Error fetching usage trend:', error);

@@ -452,6 +452,7 @@ export const sleeper = {
     targetTrend?: 'up' | 'down' | 'stable';
     carryTrend?: 'up' | 'down' | 'stable';
     trendChange?: number;
+    season?: number;
   } | null> {
     // Get player info
     const player = await this.getPlayerByName(playerName);
@@ -470,11 +471,10 @@ export const sleeper = {
       }
     }
 
-    // Determine current week (approximate based on date)
-    const now = new Date();
-    const seasonStart = new Date(2025, 8, 4); // Sept 4, 2025 (Week 1)
-    const daysSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (1000 * 60 * 60 * 24));
-    const currentWeek = Math.min(18, Math.max(1, Math.floor(daysSinceStart / 7) + 1));
+    // Get current NFL state from Sleeper (official season/week)
+    const nflState = await this.getNflState();
+    const season = parseInt(nflState.season);
+    const currentWeek = nflState.week;
 
     // Fetch stats for recent weeks
     const weeks: Array<{
@@ -492,7 +492,7 @@ export const sleeper = {
 
     for (let week = startWeek; week <= currentWeek; week++) {
       try {
-        const weekStats = await this.getWeeklyStats(2025, week);
+        const weekStats = await this.getWeeklyStats(season, week);
         const playerWeekStats = weekStats.get(playerId);
 
         if (!playerWeekStats) continue;
@@ -587,6 +587,7 @@ export const sleeper = {
       targetTrend,
       carryTrend,
       trendChange,
+      season,
     };
   },
 
@@ -600,11 +601,10 @@ export const sleeper = {
     const team = player.team;
     const playerId = player.id;
 
-    // Get current week
-    const now = new Date();
-    const seasonStart = new Date(2025, 8, 4);
-    const daysSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (1000 * 60 * 60 * 24));
-    const currentWeek = Math.min(18, Math.max(1, Math.floor(daysSinceStart / 7) + 1));
+    // Get current NFL state from Sleeper
+    const nflState = await this.getNflState();
+    const season = parseInt(nflState.season);
+    const currentWeek = nflState.week;
 
     // Get all players
     const allPlayers = await this.getAllPlayers();
@@ -614,7 +614,7 @@ export const sleeper = {
 
     for (let week = Math.max(1, currentWeek - 2); week <= currentWeek; week++) {
       try {
-        const weekStats = await this.getWeeklyStats(2025, week);
+        const weekStats = await this.getWeeklyStats(season, week);
 
         for (const [id, stats] of weekStats) {
           const p = allPlayers.get(id);
