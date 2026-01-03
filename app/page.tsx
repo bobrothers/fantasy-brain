@@ -373,14 +373,31 @@ export default function Home() {
                   </div>
                 </div>
                 
-                {/* Impact score */}
-                <div className="text-right">
-                  <div className="text-xs text-zinc-500 mb-1">EDGE IMPACT</div>
+                {/* Impact score with tooltip */}
+                <div className="text-right relative group cursor-help">
+                  <div className="text-xs text-zinc-500 mb-1 flex items-center justify-end gap-1">
+                    EDGE IMPACT
+                    <span className="text-zinc-600 text-[10px]">ⓘ</span>
+                  </div>
                   <div className={`text-5xl font-black tabular-nums ${getImpactColor(result.overall.impact)}`}>
                     {result.overall.impact > 0 ? '+' : ''}{result.overall.impact.toFixed(1)}
                   </div>
                   <div className="text-xs text-zinc-500 mt-1">
                     {result.overall.confidence}% confidence
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-zinc-800 border border-zinc-700 text-left text-xs opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 shadow-xl">
+                    <div className="font-bold text-zinc-300 mb-2">How Edge Impact Works</div>
+                    <div className="text-zinc-400 space-y-1.5">
+                      <div><span className="text-emerald-400">+3 to +5</span> = Strong start</div>
+                      <div><span className="text-lime-400">+1 to +3</span> = Slight boost</div>
+                      <div><span className="text-zinc-400">-1 to +1</span> = Neutral</div>
+                      <div><span className="text-orange-400">-3 to -1</span> = Slight concern</div>
+                      <div><span className="text-red-400">-5 to -3</span> = Major red flags</div>
+                    </div>
+                    <div className="text-zinc-500 mt-2 pt-2 border-t border-zinc-700">
+                      Aggregates 15 edge signals: weather, matchup, usage, betting lines, injuries, and more.
+                    </div>
                   </div>
                 </div>
               </div>
