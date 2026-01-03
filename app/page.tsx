@@ -224,15 +224,26 @@ export default function Home() {
               </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {restingPlayers.map((player, i) => (
-                <div
-                  key={i}
-                  className="bg-purple-950/50 px-3 py-2 text-sm"
-                >
-                  <div className="text-purple-200 font-medium">{player.name}</div>
-                  <div className="text-purple-400 text-xs">{player.team} • {player.reason.split(' - ')[0]}</div>
-                </div>
-              ))}
+              {restingPlayers.map((player, i) => {
+                const isSuspended = player.reason.toLowerCase().includes('suspended');
+                return (
+                  <div
+                    key={i}
+                    className={`px-3 py-2 text-sm ${
+                      isSuspended
+                        ? 'bg-red-950/50 border border-red-800'
+                        : 'bg-purple-950/50'
+                    }`}
+                  >
+                    <div className={`font-medium ${isSuspended ? 'text-red-200' : 'text-purple-200'}`}>
+                      {player.name}
+                    </div>
+                    <div className={`text-xs ${isSuspended ? 'text-red-400' : 'text-purple-400'}`}>
+                      {player.team} • {player.reason.split(' - ')[0]}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-3 text-xs text-purple-500">
               Sources: Coach press conferences, official injury reports •{' '}
