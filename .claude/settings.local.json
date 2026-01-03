@@ -20,7 +20,9 @@
       "Bash(lsof:*)",
       "WebSearch",
       "Bash(npm run build:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(node -e:*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

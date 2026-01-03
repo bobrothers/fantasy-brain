@@ -270,8 +270,8 @@ export const NFL_STADIUMS: Record<string, Stadium> = {
     timezone: 'America/New_York',
     elevation: 39,
   },
-  WAS: {
-    team: 'WAS',
+  WSH: {
+    team: 'WSH',
     name: 'Northwest Stadium',
     city: 'Landover',
     state: 'MD',
