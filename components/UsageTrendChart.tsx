@@ -87,19 +87,19 @@ export default function UsageTrendChart({ playerName, position }: Props) {
   const trend = showCarryShare ? data.carryTrend : data.targetTrend;
   const avg = showCarryShare ? data.avgCarryShare : data.avgTargetShare;
 
-  // Chart dimensions
+  // Chart dimensions - no horizontal padding so points align with labels
   const width = 200;
   const height = 50;
-  const padding = 4;
+  const verticalPadding = 8;
 
   const maxVal = Math.max(...values, 1);
   const minVal = Math.min(...values);
   const range = maxVal - minVal || 1;
 
-  // Generate SVG path
+  // Generate SVG path - x goes edge to edge to match justify-between labels
   const points = values.map((val, i) => {
-    const x = padding + (i / (values.length - 1)) * (width - padding * 2);
-    const y = height - padding - ((val - minVal) / range) * (height - padding * 2);
+    const x = (i / (values.length - 1)) * width;
+    const y = height - verticalPadding - ((val - minVal) / range) * (height - verticalPadding * 2);
     return { x, y, val };
   });
 
@@ -127,9 +127,9 @@ export default function UsageTrendChart({ playerName, position }: Props) {
       <div className="flex items-center gap-6">
         {/* Chart */}
         <div className="flex-1">
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12" style={{ overflow: 'visible' }}>
             {/* Grid lines */}
-            <line x1={padding} y1={height/2} x2={width-padding} y2={height/2}
+            <line x1={0} y1={height/2} x2={width} y2={height/2}
               stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
 
             {/* Trend line */}
