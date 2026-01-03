@@ -2,19 +2,6 @@
 
 ## High Priority
 
-### Live Data Sources (Replace Hardcoded)
-- [x] Hot/cold streak from Sleeper weekly stats API ✅ NOW LIVE
-- [x] Primetime schedule from ESPN API ✅ NOW LIVE
-- [x] Deep stats (snap trend, air yards, target premium, divisional, 2nd half) ✅ ALREADY LIVE
-- [ ] Defense rankings from FantasyPros or NFL.com API
-- [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
-
-### Trade Value Data (Assessed - requires external sources)
-- Injury history: Sleeper only has current status, NOT historical (would need PFR/ESPN injury history)
-- Draft capital: Sleeper has rookie_year but NOT draft round/pick (would need NFL.com data)
-- Contract years: Would need Spotrac/OverTheCap API (often paid)
-- Depth chart threats: Could use Sleeper's depth_chart_order (improvement opportunity)
-
 ### Multi-Player Trades
 - [ ] Support 2-for-1, 3-for-2 trades in trade analyzer
 - [ ] Sum values for trade packages
@@ -26,13 +13,17 @@
 - [ ] "Analyze My Team" - batch analyze all roster players
 - [ ] Start/sit recommendations based on edge scores
 
+### Live Data Sources (Replace Hardcoded)
+- [ ] Defense rankings from FantasyPros or NFL.com API
+- [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
+
 ## Medium Priority
 
 ### Data Coverage Expansion
 - [ ] Expand trade value data beyond top ~25 players
 - [ ] More revenge game matchups (currently ~7 players)
 - [ ] More contract incentive data
-- [ ] More depth chart threat data (currently ~11 players)
+- [ ] Use Sleeper's depth_chart_order for dynamic depth chart threats
 
 ### Live Alerts
 - [ ] Injury alerts (push notification when star player status changes)
@@ -52,26 +43,29 @@
 - [ ] Draft assistant mode (dynasty rookie drafts)
 - [ ] League-specific scoring (PPR vs Standard vs Half-PPR adjustments)
 
-## Completed
+## Completed (January 2026)
 
-### January 2026 Session - Data Quality Fixes
-- [x] **Hot/cold streak now LIVE** - pulls from Sleeper weekly stats API (was hardcoded for ~20 players)
-- [x] **Primetime schedule now LIVE** - uses ESPN API dynamically (was hardcoded for Weeks 15-17)
-- [x] Deep stats verified - already using live Sleeper data for all 5 metrics
-- [x] Assessed trade value data - documented what can/cannot be automated
+### This Session
+- [x] Live scores ticker from ESPN (shows scores or "BAL @ PIT SNF" format)
+- [x] Edge Impact tooltip explaining the score scale
+- [x] Fixed Weekly Snap % chart not rendering bars
+- [x] Fixed Washington team abbreviation (WSH → WAS)
+- [x] Hot/cold streak now LIVE from Sleeper weekly stats API
+- [x] Primetime schedule now LIVE from ESPN API
+- [x] Deep stats verified - already using live Sleeper data
 
-### January 2026 Session - Earlier
+### Earlier This Session
 - [x] Trade analyzer with Dynasty/Redraft modes
 - [x] Dynasty metrics: Draft capital, breakout age, offensive ranking, depth chart threat
 - [x] Redraft metrics: Hot/cold streak, Vegas implied, playoff weather, positional scarcity, primetime
 - [x] Player search autocomplete prioritizes active players
 - [x] Suspended players show in red (vs purple for resting)
+- [x] DK Metcalf updated to PIT, marked as Suspended
 - [x] Usage trend chart from real Sleeper 2025 data
 - [x] Cold weather performance tracking
 - [x] Deep stats: Snap trend, Air yards, Target premium, Divisional, Second half surge
 - [x] Navigation bar on all pages
 - [x] SNF/MNF primetime detection fixed (UTC timezone issue)
-- [x] DK Metcalf updated to PIT, marked as Suspended
 
 ### Previous Sessions
 - [x] 15 edge detectors implemented

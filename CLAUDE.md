@@ -3,16 +3,17 @@
 ## Project Overview
 Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden edge" signals that mainstream projections ignore: weather impact, travel/rest disadvantages, OL injuries, betting line movements, usage trends, and more.
 
-## Current State (Updated January 2026)
+## Current State (Updated January 3, 2026)
 
 ### What's Working
 - **Web UI** at https://fantasy-brain.vercel.app
 - **CLI tool** for player analysis: `npm run analyze "Player Name"`
 - **15 edge detectors** integrated into single analysis
 - **5 data providers** connected (Sleeper, Weather, ESPN, Odds API, nflfastR)
-- **Trade Analyzer** at /trade - Dynasty and Redraft modes with enhanced metrics
+- **Trade Analyzer** at /trade - Dynasty and Redraft modes
 - **Waiver Wire Scanner** at /waivers - Real trending data from Sleeper API
-- **Dynamic schedule** from ESPN API (supports any week, not just Week 18)
+- **Live Scores Ticker** - ESPN scoreboard with seamless animation
+- **Dynamic schedule** from ESPN API (supports any week)
 
 ### Features
 
@@ -23,23 +24,25 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 - Deep stats: Snap trend, Air yards share, Target premium, Divisional performance, Second half surge
 - Lock countdown timer (shows "Locks in Xh Xm", red under 1hr)
 - Resting/Suspended player banner (suspended shows in red)
+- **Edge Impact tooltip** - hover to see score scale explanation
+- **Live scores ticker** - shows game scores or upcoming matchups (BAL @ PIT SNF)
 
 #### Trade Analyzer (/trade)
 - **Dynasty mode**:
   - Core: Age curves by position, injury history, situation stability
-  - NEW: Draft capital (1st rounders get bonus), Breakout age (early = longer prime)
-  - NEW: Offensive ranking (elite offenses boost value), Depth chart threat
+  - Draft capital (1st rounders get bonus), Breakout age (early = longer prime)
+  - Offensive ranking (elite offenses boost value), Depth chart threat
 - **Redraft mode**:
   - Core: Playoff schedule (Wks 15-17), availability, usage trends
-  - NEW: Hot/cold streak (last 4 games PPG with fire/ice indicators)
-  - NEW: Vegas implied points (team scoring environment)
-  - NEW: Playoff weather (cold weather games), Positional scarcity (TE premium)
-  - NEW: Primetime schedule (SNF/MNF/TNF playoff games)
+  - **Hot/cold streak** - LIVE from Sleeper weekly stats (last 4 games PPG)
+  - Vegas implied points (team scoring environment)
+  - Playoff weather (cold weather games), Positional scarcity (TE premium)
+  - **Primetime schedule** - LIVE from ESPN API (SNF/MNF/TNF detection)
 - Verdict system: ACCEPT / REJECT / SLIGHT EDGE / TOSS-UP
 - "Gun to head" recommendation for close calls
 
 #### Waiver Wire Scanner (/waivers)
-- Real trending adds from Sleeper API (not fabricated roster %)
+- Real trending adds from Sleeper API
 - Edge scores from actual edge detector analysis
 - Position filters (QB/RB/WR/TE/ALL)
 - Hidden gems: High adds + positive edge score
@@ -52,51 +55,50 @@ npm run compare "P1" "P2" "P3"           # Compare multiple players
 npm run test-providers                   # Verify API connections
 ```
 
-### Edge Detector Status
+### Data Source Status
 
+#### Edge Detectors
 | Module | Source | Status |
 |--------|--------|--------|
-| weather-impact | Open-Meteo API | ✅ Real data |
-| travel-rest | Schedule | ✅ Working |
-| ol-injury | ESPN API | ✅ Real data |
-| betting-signals | Odds API | ✅ Real data |
-| defense-vs-position | Hardcoded | ⚠️ Approximate rankings |
-| opposing-defense-injuries | Sleeper API | ✅ Real data |
-| usage-trends | nflfastR CSV | ✅ Real data (WR/RB/TE only) |
-| contract-incentives | Manual | ⚠️ Limited player coverage |
-| revenge-games | Hardcoded | ⚠️ ~7 players only |
-| red-zone-usage | nflfastR CSV | ⚠️ Estimated from TDs |
+| weather-impact | Open-Meteo API | ✅ Live |
+| travel-rest | ESPN Schedule | ✅ Live |
+| ol-injury | ESPN API | ✅ Live |
+| betting-signals | Odds API | ✅ Live |
+| defense-vs-position | Hardcoded | ⚠️ Approximate |
+| opposing-defense-injuries | Sleeper API | ✅ Live |
+| usage-trends | Sleeper weekly stats | ✅ Live |
+| contract-incentives | Manual | ⚠️ ~15 players |
+| revenge-games | Hardcoded | ⚠️ ~7 players |
+| red-zone-usage | nflfastR CSV | ⚠️ Estimated |
 | home-away-splits | Hardcoded | ⚠️ Sample data |
-| primetime-performance | Hardcoded | ⚠️ Sample data |
-| division-rivalry | Schedule | ✅ Working |
-| rest-advantage | Schedule | ✅ Working |
+| primetime-performance | ESPN + Manual | ⚠️ Schedule live, history manual |
+| division-rivalry | ESPN Schedule | ✅ Live |
+| rest-advantage | ESPN Schedule | ✅ Live |
 | indoor-outdoor-splits | Hardcoded | ⚠️ Sample data |
 
-### Trade Value Data Status
-
+#### Trade Value Metrics
 | Metric | Source | Coverage |
 |--------|--------|----------|
-| Age curves | Position-specific formulas | ✅ All positions |
-| Injury history | Manual research | ⚠️ ~25 top players (Sleeper lacks history) |
-| Situation/contract | Manual research | ⚠️ ~15 top players (no contract API) |
-| Draft capital | Manual research | ⚠️ ~35 players (Sleeper lacks round/pick) |
-| Breakout age | Manual research | ⚠️ ~20 players |
-| Offensive ranking | 2024-25 end of season | ⚠️ Static rankings |
-| Depth chart threat | Manual research | ⚠️ ~11 players |
-| **Hot/cold streak** | **Sleeper weekly stats API** | ✅ **ALL PLAYERS - LIVE** |
-| Vegas implied | 2025 playoff estimates | ⚠️ All teams |
-| Positional scarcity | Manual tiers | ⚠️ ~11 elite players |
-| **Primetime schedule** | **ESPN schedule API** | ✅ **ALL TEAMS - LIVE** |
+| Age curves | Position formulas | ✅ All positions |
+| **Hot/cold streak** | **Sleeper API** | ✅ **ALL PLAYERS** |
+| **Primetime schedule** | **ESPN API** | ✅ **ALL TEAMS** |
+| Injury history | Manual | ⚠️ ~25 players |
+| Situation/contract | Manual | ⚠️ ~15 players |
+| Draft capital | Manual | ⚠️ ~35 players |
+| Breakout age | Manual | ⚠️ ~20 players |
+| Offensive ranking | Static 2024-25 | ⚠️ All teams |
+| Depth chart threat | Manual | ⚠️ ~11 players |
+| Vegas implied | Static estimates | ⚠️ All teams |
+| Positional scarcity | Manual tiers | ⚠️ ~11 players |
 
 ### Known Issues
-1. Defense rankings are approximate, not from live source
-2. Home/away, indoor/outdoor splits use sample data (primetime is now LIVE from ESPN)
+1. Defense rankings are approximate (not from live API)
+2. Home/away, indoor/outdoor splits use sample data
 3. Revenge games only has ~7 players hardcoded
-4. Contract incentives limited to manually researched players
-5. Usage trends shows "N/A" for QBs (by design - no target/carry share)
-6. Dynasty trade metrics (injury history, situation, draft capital) only cover top ~20-35 players
+4. Dynasty trade metrics (injury history, situation, draft capital) limited to top ~25-35 players
    - Sleeper API lacks: historical injuries, draft round/pick, contract data
-   - Would need external sources: Pro-Football-Reference, Spotrac, OverTheCap
+   - Would need: Pro-Football-Reference, Spotrac, OverTheCap
+5. Usage trends shows "N/A" for QBs (by design)
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
@@ -106,16 +108,15 @@ npm run test-providers                   # Verify API connections
   - Sleeper API (players, injuries, weekly stats, trending)
   - Open-Meteo (weather forecasts)
   - The Odds API (betting lines)
-  - ESPN API (OL injuries, schedule)
-  - nflfastR CSV (usage stats - 2024 season)
+  - ESPN API (OL injuries, schedule, live scores)
+  - nflfastR CSV (historical usage stats)
 
 ## Code Guidelines
 
 ### Data Quality Rules (IMPORTANT)
 - **Never fabricate data** - only use verified sources
 - **Add source comments** to any manual/hardcoded data
-- **Add disclaimers** in file headers for approximate data
-- **Search and verify** before adding player-specific info
+- **Standardize team abbreviations** - use `WAS` not `WSH` (Sleeper standard)
 
 ### General
 - Always use TypeScript for new files
@@ -126,10 +127,10 @@ npm run test-providers                   # Verify API connections
 ### Project Structure
 ```
 /app
-  /api/analyze/       # API route for player analysis
+  /api/analyze/       # Player analysis API
   /api/trade/         # Trade analyzer API
   /api/waivers/       # Waiver scanner API
-  /api/cold-weather/  # Cold weather performance API
+  /api/scores/        # Live ESPN scores API
   /api/deep-stats/    # Deep stats API
   /api/usage-trend/   # Usage trend chart API
   /api/resting/       # Resting/suspended players API
@@ -137,9 +138,9 @@ npm run test-providers                   # Verify API connections
   /waivers/           # Waiver scanner UI
   page.tsx            # Main UI (player analysis)
 /components
-  PlayerAutocomplete.tsx  # Search with dropdown
-  LockTimer.tsx           # Game lock countdown
-  UsageTrendChart.tsx     # Last 6 weeks usage
+  PlayerAutocomplete.tsx
+  LockTimer.tsx
+  UsageTrendChart.tsx
   ColdWeatherPerformance.tsx
   DeepStats.tsx
 /lib
@@ -150,8 +151,6 @@ npm run test-providers                   # Verify API connections
   schedule.ts         # Dynamic schedule service (ESPN API)
   edge-detector.ts    # Main orchestrator
 /types/               # TypeScript interfaces
-/data/nflfastr/       # Cached CSV data (gitignored)
-analyze.ts            # CLI entry point
 ```
 
 ## API Keys
@@ -161,28 +160,8 @@ ODDS_API_KEY=your_key_here   # Required for betting signals
 - Weather API: free, no key needed
 - Sleeper API: free, no key needed
 - ESPN API: free, no key needed
-- nflfastR: free CSV download, no key needed
 
 ## Deployment
 - **GitHub**: https://github.com/bobrothers/fantasy-brain
 - **Vercel**: https://fantasy-brain.vercel.app
 - Environment variable `ODDS_API_KEY` must be set in Vercel dashboard
-
-## Claude Code Agents
-
-Custom agents are available in `.claude/agents/`:
-
-| Agent | Purpose | When to Use |
-|-------|---------|-------------|
-| `build-validator.md` | Runs build, tests, lint and reports pass/fail | Before commits, PRs, after merges |
-| `code-architect.md` | Plans architecture with ASCII diagrams | Before implementing new features |
-| `code-simplifier.md` | Identifies and removes unnecessary complexity | After shipping, during refactors |
-| `verify-app.md` | Tests features from user perspective | After deploys, when issues reported |
-
-### Usage
-Reference agents in conversation: "Use the build-validator agent to check the build"
-
-## Working Files
-
-- `TODO.md` - Track work in progress and planned features
-- `scratch.md` - Notes, ideas, temporary work
