@@ -98,6 +98,11 @@ export async function getMatchupString(team: string, week?: number): Promise<str
 /**
  * Check if a game is primetime (SNF, MNF, TNF)
  * Based on kickoff time from ESPN
+ *
+ * Times are in UTC, but we need to determine the ET day:
+ * - TNF 8:15 PM ET = Fri ~01:15 UTC (dayOfWeek 5)
+ * - SNF 8:20 PM ET = Mon ~01:20 UTC (dayOfWeek 1)
+ * - MNF 8:15 PM ET = Tue ~01:15 UTC (dayOfWeek 2)
  */
 export async function isPrimetimeGame(team: string, week?: number): Promise<{
   isPrimetime: boolean;
@@ -109,26 +114,26 @@ export async function isPrimetimeGame(team: string, week?: number): Promise<{
   if (!game) return { isPrimetime: false };
 
   const gameDate = new Date(game.date);
-  const dayOfWeek = gameDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const dayOfWeek = gameDate.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
   const hour = gameDate.getUTCHours();
 
-  // Thursday Night Football (Thursday, evening)
-  if (dayOfWeek === 4 && hour >= 0) {
+  // Thursday Night Football (Thu 8:15 PM ET = Fri ~01:15 UTC)
+  if (dayOfWeek === 5 && hour < 6) {
     return { isPrimetime: true, slot: 'TNF' };
   }
 
-  // Sunday Night Football (Sunday, late evening - typically 8:20 PM ET = 1:20 AM UTC next day or 0:20 UTC)
-  if (dayOfWeek === 0 && hour >= 0 && hour <= 2) {
+  // Sunday Night Football (Sun 8:20 PM ET = Mon ~01:20 UTC)
+  if (dayOfWeek === 1 && hour < 6) {
     return { isPrimetime: true, slot: 'SNF' };
   }
 
-  // Monday Night Football (Monday evening)
-  if (dayOfWeek === 1 && hour >= 0 && hour <= 4) {
+  // Monday Night Football (Mon 8:15 PM ET = Tue ~01:15 UTC)
+  if (dayOfWeek === 2 && hour < 6) {
     return { isPrimetime: true, slot: 'MNF' };
   }
 
   // Saturday games (late season / playoffs)
-  if (dayOfWeek === 6) {
+  if (dayOfWeek === 6 || (dayOfWeek === 0 && hour < 6)) {
     return { isPrimetime: true, slot: 'SAT' };
   }
 
