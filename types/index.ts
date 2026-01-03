@@ -2,6 +2,9 @@
 export interface Player {
   id: string;                    // Sleeper player_id
   name: string;
+  full_name?: string;            // Full name from Sleeper
+  first_name?: string;
+  last_name?: string;
   position: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
   team: string | null;           // NFL team abbreviation
   status: 'Active' | 'Injured Reserve' | 'Out' | 'Questionable' | 'Doubtful' | 'Inactive';
@@ -105,7 +108,8 @@ export type EdgeSignalType =
   | 'primetime_performance'
   | 'division_rivalry'
   | 'rest_advantage'
-  | 'indoor_outdoor_split';
+  | 'indoor_outdoor_split'
+  | 'coverage_matchup';
 
 // Player recommendation output
 export interface PlayerRecommendation {

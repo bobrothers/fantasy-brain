@@ -297,7 +297,7 @@ export function detectCoverageMatchupEdge(
       week,
       impact: isPositive ? 'positive' : 'negative',
       magnitude,
-      confidence: preference !== 'neutral' ? 75 : 50,
+      confidence: 75, // Player has known coverage preference
       shortDescription: isPositive
         ? `${matchupGrade === 'smash' ? 'Smash' : 'Good'}: ${preference}-beater vs ${coverageType}-heavy ${opponentTeam}`
         : `${matchupGrade === 'avoid' ? 'Avoid' : 'Tough'}: ${preference}-beater vs ${coverageType}-heavy ${opponentTeam}`,

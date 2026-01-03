@@ -4,8 +4,15 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PlayerAutocomplete from '@/components/PlayerAutocomplete';
 import LockTimer from '@/components/LockTimer';
+import PickSelector from '@/components/PickSelector';
 
 type TradeMode = 'dynasty' | 'redraft';
+
+interface DraftPick {
+  year: number;
+  round: 1 | 2 | 3 | 4;
+  position: 'early' | 'mid' | 'late';
+}
 
 interface DynastyValue {
   player: { name: string; team: string | null; position: string; age?: number };
@@ -48,11 +55,34 @@ interface RedraftValue {
   summary: string;
 }
 
+interface PickValue {
+  pick: DraftPick;
+  value: {
+    dynastyScore: number;
+    tier: string;
+    playerEquivalent: string;
+    description: string;
+  };
+}
+
+interface TradeSide {
+  players: Array<{
+    name: string;
+    dynasty: DynastyValue;
+    redraft: RedraftValue;
+  }>;
+  picks: PickValue[];
+  totalDynastyValue: number;
+  totalRedraftValue: number;
+}
+
 interface TradeResult {
-  player1: { dynasty: DynastyValue; redraft: RedraftValue };
-  player2: { dynasty: DynastyValue; redraft: RedraftValue };
+  side1: TradeSide;
+  side2: TradeSide;
+  player1?: { dynasty: DynastyValue; redraft: RedraftValue };
+  player2?: { dynasty: DynastyValue; redraft: RedraftValue };
   verdict: {
-    winner: 'player1' | 'player2' | 'even';
+    winner: 'side1' | 'side2' | 'even';
     action: 'ACCEPT' | 'REJECT' | 'SLIGHT EDGE' | 'TOSS-UP';
     margin: number;
     confidence: number;
@@ -66,6 +96,8 @@ interface TradeResult {
 export default function TradePage() {
   const [player1, setPlayer1] = useState('');
   const [player2, setPlayer2] = useState('');
+  const [picks1, setPicks1] = useState<DraftPick[]>([]);
+  const [picks2, setPicks2] = useState<DraftPick[]>([]);
   const [mode, setMode] = useState<TradeMode>('dynasty');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TradeResult | null>(null);
@@ -80,15 +112,24 @@ export default function TradePage() {
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!player1.trim() || !player2.trim()) return;
+    // Need at least one asset on each side (player or picks)
+    const hasSide1 = player1.trim() || picks1.length > 0;
+    const hasSide2 = player2.trim() || picks2.length > 0;
+    if (!hasSide1 || !hasSide2) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(
-        `/api/trade?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&mode=${mode}`
-      );
+      // Build query params
+      const params = new URLSearchParams();
+      if (player1.trim()) params.set('player1', player1);
+      if (player2.trim()) params.set('player2', player2);
+      if (picks1.length > 0) params.set('picks1', JSON.stringify(picks1));
+      if (picks2.length > 0) params.set('picks2', JSON.stringify(picks2));
+      params.set('mode', mode);
+
+      const res = await fetch(`/api/trade?${params.toString()}`);
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Analysis failed');
@@ -106,12 +147,19 @@ export default function TradePage() {
   // Re-analyze when mode changes (if we have a result)
   const handleModeChange = async (newMode: TradeMode) => {
     setMode(newMode);
-    if (result && player1 && player2) {
+    const hasSide1 = player1.trim() || picks1.length > 0;
+    const hasSide2 = player2.trim() || picks2.length > 0;
+    if (result && hasSide1 && hasSide2) {
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/trade?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&mode=${newMode}`
-        );
+        const params = new URLSearchParams();
+        if (player1.trim()) params.set('player1', player1);
+        if (player2.trim()) params.set('player2', player2);
+        if (picks1.length > 0) params.set('picks1', JSON.stringify(picks1));
+        if (picks2.length > 0) params.set('picks2', JSON.stringify(picks2));
+        params.set('mode', newMode);
+
+        const res = await fetch(`/api/trade?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
           setResult(data);
@@ -235,32 +283,48 @@ export default function TradePage() {
         {/* Input form */}
         <form onSubmit={handleAnalyze} className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-zinc-500 uppercase tracking-wider mb-2">
-                Player You&apos;re Getting
+            <div className="bg-zinc-900/50 border border-emerald-900/30 p-4">
+              <label className="block text-xs text-emerald-400 uppercase tracking-wider mb-2">
+                You&apos;re Getting
               </label>
               <PlayerAutocomplete
                 value={player1}
                 onChange={setPlayer1}
-                placeholder="e.g., Ja'Marr Chase"
+                placeholder="Add player (optional)"
                 inputClassName="border-emerald-700/50 focus:border-emerald-400"
               />
+              {mode === 'dynasty' && (
+                <PickSelector
+                  picks={picks1}
+                  onChange={setPicks1}
+                  label="Draft Picks"
+                  color="emerald"
+                />
+              )}
             </div>
-            <div>
-              <label className="block text-xs text-zinc-500 uppercase tracking-wider mb-2">
-                Player You&apos;re Giving Up
+            <div className="bg-zinc-900/50 border border-amber-900/30 p-4">
+              <label className="block text-xs text-amber-400 uppercase tracking-wider mb-2">
+                You&apos;re Giving Up
               </label>
               <PlayerAutocomplete
                 value={player2}
                 onChange={setPlayer2}
-                placeholder="e.g., Derrick Henry"
+                placeholder="Add player (optional)"
                 inputClassName="border-amber-700/50 focus:border-amber-400"
               />
+              {mode === 'dynasty' && (
+                <PickSelector
+                  picks={picks2}
+                  onChange={setPicks2}
+                  label="Draft Picks"
+                  color="amber"
+                />
+              )}
             </div>
           </div>
           <button
             type="submit"
-            disabled={loading || !player1.trim() || !player2.trim()}
+            disabled={loading || (!player1.trim() && picks1.length === 0) || (!player2.trim() && picks2.length === 0)}
             className="w-full bg-amber-400 text-zinc-900 px-6 py-3 text-sm font-bold tracking-wider hover:bg-amber-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'ANALYZING...' : 'ANALYZE TRADE'}
@@ -293,10 +357,10 @@ export default function TradePage() {
                 <div className="text-right">
                   <div className="text-xs text-zinc-500">Value Difference</div>
                   <div className={`text-4xl font-black tabular-nums ${
-                    result.verdict.winner === 'player1' ? 'text-emerald-400' :
-                    result.verdict.winner === 'player2' ? 'text-red-400' : 'text-amber-400'
+                    result.verdict.winner === 'side1' ? 'text-emerald-400' :
+                    result.verdict.winner === 'side2' ? 'text-red-400' : 'text-amber-400'
                   }`}>
-                    {result.verdict.winner === 'player1' ? '+' : result.verdict.winner === 'player2' ? '-' : ''}
+                    {result.verdict.winner === 'side1' ? '+' : result.verdict.winner === 'side2' ? '-' : ''}
                     {result.verdict.margin.toFixed(0)}
                   </div>
                   <div className="text-xs text-zinc-500">{result.verdict.confidence}% confidence</div>
@@ -327,22 +391,22 @@ export default function TradePage() {
 
             {/* Side by side comparison */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Player 1 - Getting */}
-              <PlayerCard
+              {/* Side 1 - Getting */}
+              <SideCard
                 label="Getting"
                 labelColor="emerald"
-                data={mode === 'dynasty' ? result.player1.dynasty : result.player1.redraft}
+                side={result.side1}
                 mode={mode}
                 getScoreColor={getScoreColor}
                 getTierColor={getTierColor}
                 getDifficultyColor={getDifficultyColor}
               />
 
-              {/* Player 2 - Giving */}
-              <PlayerCard
+              {/* Side 2 - Giving */}
+              <SideCard
                 label="Giving Up"
                 labelColor="amber"
-                data={mode === 'dynasty' ? result.player2.dynasty : result.player2.redraft}
+                side={result.side2}
                 mode={mode}
                 getScoreColor={getScoreColor}
                 getTierColor={getTierColor}
@@ -610,6 +674,153 @@ function FactorsList({ factors }: { factors: { positive: string[]; negative: str
           <span className="text-zinc-300">{f}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Format pick for display
+function formatPickLabel(pick: DraftPick): string {
+  const posLabel = pick.position === 'early' ? 'Early' : pick.position === 'late' ? 'Late' : 'Mid';
+  const roundLabel = pick.round === 1 ? '1st' : pick.round === 2 ? '2nd' : pick.round === 3 ? '3rd' : '4th';
+  return `${pick.year} ${posLabel} ${roundLabel}`;
+}
+
+// Side Card Component - handles players + picks
+function SideCard({
+  label,
+  labelColor,
+  side,
+  mode,
+  getScoreColor,
+  getTierColor,
+  getDifficultyColor,
+}: {
+  label: string;
+  labelColor: 'emerald' | 'amber';
+  side: TradeSide;
+  mode: TradeMode;
+  getScoreColor: (score: number) => string;
+  getTierColor: (tier: string) => string;
+  getDifficultyColor: (diff: string) => string;
+}) {
+  const isDynasty = mode === 'dynasty';
+  const totalScore = isDynasty ? side.totalDynastyValue : side.totalRedraftValue;
+  const hasPlayer = side.players.length > 0;
+  const hasPicks = side.picks.length > 0;
+
+  // If we have a single player, show detailed view
+  if (hasPlayer && side.players.length === 1 && !hasPicks) {
+    const p = side.players[0];
+    return (
+      <PlayerCard
+        label={label}
+        labelColor={labelColor}
+        data={isDynasty ? p.dynasty : p.redraft}
+        mode={mode}
+        getScoreColor={getScoreColor}
+        getTierColor={getTierColor}
+        getDifficultyColor={getDifficultyColor}
+      />
+    );
+  }
+
+  // Multi-asset view (players + picks)
+  return (
+    <div className="bg-zinc-900 border border-zinc-800">
+      {/* Header */}
+      <div className={`p-4 border-b border-zinc-800 ${labelColor === 'emerald' ? 'bg-emerald-950/20' : 'bg-amber-950/20'}`}>
+        <div className={`text-xs uppercase tracking-wider mb-1 ${labelColor === 'emerald' ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {label}
+        </div>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-white">
+              {hasPlayer ? side.players.map(p => p.name).join(' + ') : ''}
+              {hasPlayer && hasPicks ? ' + ' : ''}
+              {hasPicks ? side.picks.map(p => formatPickLabel(p.pick)).join(' + ') : ''}
+            </h2>
+            <div className="text-xs text-zinc-500 mt-1">
+              {hasPlayer && `${side.players.length} player${side.players.length > 1 ? 's' : ''}`}
+              {hasPlayer && hasPicks && ' + '}
+              {hasPicks && `${side.picks.length} pick${side.picks.length > 1 ? 's' : ''}`}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className={`text-3xl font-black tabular-nums ${getScoreColor(totalScore)}`}>
+              {totalScore}
+            </div>
+            <div className="text-xs text-zinc-500">total pts</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Players */}
+        {side.players.map((p, i) => {
+          const val = isDynasty ? p.dynasty : p.redraft;
+          return (
+            <div key={i} className="border-b border-zinc-800 pb-3 last:border-0 last:pb-0">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white">{p.name}</span>
+                  <span className="text-xs text-zinc-500">{val.player.team} {val.player.position}</span>
+                </div>
+                <span className={`font-bold ${getScoreColor(val.overallScore)}`}>{val.overallScore}</span>
+              </div>
+              {isDynasty && (
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 text-xs font-bold uppercase border ${getTierColor(p.dynasty.tier)}`}>
+                    {p.dynasty.tier}
+                  </span>
+                  <span className="text-xs text-zinc-500">{p.dynasty.yearsOfEliteProduction}+ elite years</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Picks */}
+        {side.picks.map((p, i) => (
+          <div key={`pick-${i}`} className="border-b border-zinc-800 pb-3 last:border-0 last:pb-0">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-400">📋</span>
+                <span className="font-bold text-white">{formatPickLabel(p.pick)}</span>
+              </div>
+              <span className={`font-bold ${getScoreColor(p.value.dynastyScore)}`}>{p.value.dynastyScore}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-0.5 text-xs font-bold uppercase border ${getTierColor(p.value.tier)}`}>
+                {p.value.tier}
+              </span>
+              <span className="text-xs text-zinc-500">≈ {p.value.playerEquivalent}</span>
+            </div>
+          </div>
+        ))}
+
+        {/* Value breakdown if multiple assets */}
+        {(side.players.length + side.picks.length) > 1 && (
+          <div className="pt-2 border-t border-zinc-700">
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Value Breakdown</div>
+            {side.players.map((p, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-zinc-400">{p.name}</span>
+                <span className="text-zinc-300">{isDynasty ? p.dynasty.overallScore : p.redraft.overallScore} pts</span>
+              </div>
+            ))}
+            {side.picks.map((p, i) => (
+              <div key={`pb-${i}`} className="flex justify-between text-sm">
+                <span className="text-zinc-400">{formatPickLabel(p.pick)}</span>
+                <span className="text-zinc-300">{p.value.dynastyScore} pts</span>
+              </div>
+            ))}
+            <div className="flex justify-between text-sm font-bold border-t border-zinc-700 pt-1 mt-1">
+              <span className="text-zinc-300">Total</span>
+              <span className={getScoreColor(totalScore)}>{totalScore} pts</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
