@@ -1,6 +1,12 @@
 # TODO - Fantasy Brain
 
-## Next Up
+## High Priority
+
+### Live Data Sources (Replace Hardcoded)
+- [ ] Hot/cold streak from Sleeper weekly stats API (currently manual ~20 players)
+- [ ] Defense rankings from FantasyPros or NFL.com API
+- [ ] Injury history from Sleeper injury reports (currently manual ~25 players)
+- [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
 
 ### Multi-Player Trades
 - [ ] Support 2-for-1, 3-for-2 trades in trade analyzer
@@ -13,28 +19,53 @@
 - [ ] "Analyze My Team" - batch analyze all roster players
 - [ ] Start/sit recommendations based on edge scores
 
-### Data Quality
-- [ ] Replace hardcoded defense rankings with live source (FantasyPros/NFL.com)
-- [ ] Build home/away splits from nflfastR historical data
-- [ ] Expand revenge games database (currently ~7 players)
+## Medium Priority
 
-## Future Ideas
+### Data Coverage Expansion
+- [ ] Expand trade value data beyond top ~25 players
+- [ ] More revenge game matchups (currently ~7 players)
+- [ ] More contract incentive data
+- [ ] More depth chart threat data (currently ~11 players)
 
+### Live Alerts
+- [ ] Injury alerts (push notification when star player status changes)
+- [ ] Line movement alerts (significant spread/total changes)
+- [ ] Resting player alerts (auto-detect from news)
+
+### UX Improvements
 - [ ] Mobile responsive improvements
+- [ ] Dark/light mode toggle
+- [ ] Comparison view (side-by-side players)
+
+## Low Priority / Future Ideas
+
 - [ ] Supabase for caching API responses
-- [ ] Historical edge accuracy tracking
-- [ ] Snap count trends (requires play-by-play)
+- [ ] Historical edge accuracy tracking (did our edges predict outcomes?)
+- [ ] Playoff bracket simulator
+- [ ] Draft assistant mode (dynasty rookie drafts)
+- [ ] League-specific scoring (PPR vs Standard vs Half-PPR adjustments)
 
 ## Completed
 
+### January 2026 Session
+- [x] Trade analyzer with Dynasty/Redraft modes
+- [x] Dynasty metrics: Draft capital, breakout age, offensive ranking, depth chart threat
+- [x] Redraft metrics: Hot/cold streak, Vegas implied, playoff weather, positional scarcity, primetime
+- [x] Player search autocomplete prioritizes active players
+- [x] Suspended players show in red (vs purple for resting)
+- [x] Usage trend chart from real Sleeper 2025 data
+- [x] Cold weather performance tracking
+- [x] Deep stats: Snap trend, Air yards, Target premium, Divisional, Second half surge
+- [x] Navigation bar on all pages
+- [x] SNF/MNF primetime detection fixed (UTC timezone issue)
+- [x] DK Metcalf updated to PIT, marked as Suspended
+
+### Previous Sessions
 - [x] 15 edge detectors implemented
 - [x] Web UI deployed to Vercel
-- [x] Trade Analyzer with Dynasty/Redraft modes
 - [x] Waiver Wire Scanner with real Sleeper trending data
 - [x] ACCEPT/REJECT verdict system with "gun to head" recommendation
 - [x] Position-specific age curves (RB decline at 27, WR peak 26-30)
-- [x] Edge factors extracted from real signals (no fabricated data)
 - [x] Dynamic schedule from ESPN API (supports any week)
-- [x] Player search autocomplete (dropdown after 2+ chars with name, team, position)
-- [x] Lock countdown timer (shows "Locks in Xh Xm", red under 1hr, "LOCKED" after)
-- [x] Resting starters detection (flags healthy scratches in Week 15+)
+- [x] Lock countdown timer
+- [x] Resting starters detection banner
