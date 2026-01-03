@@ -198,6 +198,16 @@ function getPlayerCoveragePreference(player: Player): { preference: CoveragePref
 
 /**
  * Calculate matchup grade based on coverage alignment
+ *
+ * Key insight:
+ * - Man-beaters (elite route runners, physical) BEAT man coverage
+ * - Zone-beaters (find soft spots, sit in zones) BEAT zone coverage
+ *
+ * So:
+ * - Man-beater vs man-heavy defense = SMASH (they beat man)
+ * - Zone-beater vs zone-heavy defense = SMASH (they beat zone)
+ * - Man-beater vs zone-heavy defense = tough (zone neutralizes their skills)
+ * - Zone-beater vs man-heavy defense = tough (can't find soft spots in man)
  */
 function calculateMatchupGrade(
   playerPref: CoveragePreference,
@@ -209,27 +219,27 @@ function calculateMatchupGrade(
   }
 
   if (playerPref === 'man') {
-    // Man-beater vs heavy man defense = tough matchup (they're built for it)
-    // Man-beater vs heavy zone defense = smash spot (zone can't handle them)
+    // Man-beater vs heavy man defense = SMASH (they beat man coverage)
+    // Man-beater vs heavy zone defense = tough (zone neutralizes route running)
     if (defenseManPct >= THRESHOLDS.HEAVY_MAN) {
-      return 'tough'; // Defense is built to stop man-beaters
-    } else if (defenseZonePct >= THRESHOLDS.HEAVY_ZONE) {
-      return 'smash'; // Zone can't handle elite route runners
-    } else if (defenseZonePct >= THRESHOLDS.MODERATE_ZONE) {
+      return 'smash'; // Elite route runners destroy man coverage
+    } else if (defenseManPct >= THRESHOLDS.MODERATE_MAN) {
       return 'good';
+    } else if (defenseZonePct >= THRESHOLDS.HEAVY_ZONE) {
+      return 'tough'; // Zone schemes limit man-beaters
     }
     return 'neutral';
   }
 
   if (playerPref === 'zone') {
-    // Zone-beater vs heavy zone defense = tough matchup
-    // Zone-beater vs heavy man defense = smash spot
+    // Zone-beater vs heavy zone defense = SMASH (they find soft spots)
+    // Zone-beater vs heavy man defense = tough (no zones to exploit)
     if (defenseZonePct >= THRESHOLDS.HEAVY_ZONE) {
-      return 'tough'; // Defense zone scheme limits zone-beaters
-    } else if (defenseManPct >= THRESHOLDS.HEAVY_MAN) {
-      return 'smash'; // Man coverage leaves holes for zone readers
-    } else if (defenseManPct >= THRESHOLDS.MODERATE_MAN) {
+      return 'smash'; // Zone readers feast on zone coverage
+    } else if (defenseZonePct >= THRESHOLDS.MODERATE_ZONE) {
       return 'good';
+    } else if (defenseManPct >= THRESHOLDS.HEAVY_MAN) {
+      return 'tough'; // Man coverage eliminates soft spots
     }
     return 'neutral';
   }
@@ -295,7 +305,8 @@ export function detectCoverageMatchupEdge(
   // Generate signals for non-neutral matchups
   if (matchupGrade !== 'neutral' && preference !== 'neutral') {
     const isPositive = matchupGrade === 'smash' || matchupGrade === 'good';
-    const coverageType = defense.manPct >= THRESHOLDS.MODERATE_MAN ? 'man' : 'zone';
+    // Coverage type that the defense primarily plays
+    const primaryCoverage = defense.manPct >= THRESHOLDS.MODERATE_MAN ? 'man' : 'zone';
 
     signals.push({
       type: 'coverage_matchup',
@@ -305,13 +316,13 @@ export function detectCoverageMatchupEdge(
       magnitude,
       confidence: 75, // Player has known coverage preference
       shortDescription: isPositive
-        ? `${matchupGrade === 'smash' ? 'Smash' : 'Good'}: ${preference}-beater vs ${coverageType}-heavy ${opponentTeam}`
-        : `${matchupGrade === 'avoid' ? 'Avoid' : 'Tough'}: ${preference}-beater vs ${coverageType}-heavy ${opponentTeam}`,
+        ? `${matchupGrade === 'smash' ? 'Smash' : 'Good'}: ${preference}-beater vs ${primaryCoverage}-heavy ${opponentTeam}`
+        : `${matchupGrade === 'avoid' ? 'Avoid' : 'Tough'}: ${preference}-beater vs ${primaryCoverage}-heavy ${opponentTeam}`,
       details: `${opponentTeam} plays ${defense.manPct.toFixed(1)}% man / ${defense.zonePct.toFixed(1)}% zone. ` +
         `Player profile: ${reason}. ` +
         (isPositive
-          ? `This coverage scheme favors this player's skill set.`
-          : `This coverage scheme is designed to limit this player type.`),
+          ? `${preference === 'man' ? 'Elite route runners destroy man coverage.' : 'Zone readers find soft spots in zone coverage.'}`
+          : `${preference === 'man' ? 'Zone schemes neutralize route running advantages.' : 'Man coverage eliminates soft spots to exploit.'}`),
       source: 'sharp-football-analysis',
       timestamp: new Date(),
     });
@@ -322,19 +333,21 @@ export function detectCoverageMatchupEdge(
   if (preference === 'neutral') {
     summary = `vs ${opponentTeam}: ${defense.manPct.toFixed(0)}% man / ${defense.zonePct.toFixed(0)}% zone`;
   } else {
-    const coverageType = defense.manPct >= THRESHOLDS.MODERATE_MAN ? 'man' : 'zone';
+    const primaryCoverage = defense.manPct >= THRESHOLDS.MODERATE_MAN ? 'man' : 'zone';
     switch (matchupGrade) {
       case 'smash':
-        summary = `Smash spot: ${preference}-beater vs ${coverageType}-heavy ${opponentTeam}`;
+        // Smash = player beats the coverage type the defense plays
+        summary = `Smash spot: ${preference}-beater vs ${primaryCoverage}-heavy ${opponentTeam}`;
         break;
       case 'good':
-        summary = `Good matchup: ${preference}-beater vs ${coverageType}-leaning ${opponentTeam}`;
+        summary = `Good matchup: ${preference}-beater vs ${primaryCoverage}-leaning ${opponentTeam}`;
         break;
       case 'tough':
-        summary = `Tough matchup: ${preference}-beater limited by ${opponentTeam}'s scheme`;
+        // Tough = player's skills neutralized by the coverage type
+        summary = `Tough: ${preference}-beater vs ${primaryCoverage}-heavy ${opponentTeam}`;
         break;
       case 'avoid':
-        summary = `Avoid: ${opponentTeam}'s scheme counters ${preference}-beaters`;
+        summary = `Avoid: ${opponentTeam}'s ${primaryCoverage} scheme limits ${preference}-beaters`;
         break;
       default:
         summary = `Neutral: ${opponentTeam} ${defense.manPct.toFixed(0)}% man / ${defense.zonePct.toFixed(0)}% zone`;
