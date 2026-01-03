@@ -171,13 +171,26 @@ export default function UsageTrendChart({ playerName, position }: Props) {
                     <circle
                       cx={p.x}
                       cy={p.y}
-                      r="8"
+                      r="6"
                       fill="none"
                       stroke={lineColor}
                       strokeWidth="2"
-                      opacity="0.5"
-                      className="animate-ping"
-                    />
+                    >
+                      <animate
+                        attributeName="r"
+                        from="6"
+                        to="12"
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        from="0.6"
+                        to="0"
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
                   )}
                   <circle cx={p.x} cy={p.y} r="4" fill={isLast ? lineColor : "#18181b"} stroke={lineColor} strokeWidth="2" />
                   <text x={p.x} y={height + 12} textAnchor="middle" fontSize="10" fill={isLast ? "#a1a1aa" : "#52525b"}>
