@@ -8,7 +8,7 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 ### What's Working
 - **Web UI** at https://fantasy-brain.vercel.app
 - **CLI tool** for player analysis: `npm run analyze "Player Name"`
-- **15 edge detectors** integrated into single analysis
+- **16 edge detectors** integrated into single analysis
 - **5 data providers** connected (Sleeper, Weather, ESPN, Odds API, nflfastR)
 - **Trade Analyzer** at /trade - Dynasty and Redraft modes
 - **Waiver Wire Scanner** at /waivers - Real trending data from Sleeper API
@@ -18,7 +18,7 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 ### Features
 
 #### Player Analysis (/)
-- 15 edge signals analyzed per player
+- 16 edge signals analyzed per player
 - Usage trend chart (last 6 weeks from Sleeper API)
 - Cold weather performance tracking
 - Deep stats: Snap trend, Air yards share, Target premium, Divisional performance, Second half surge
@@ -75,6 +75,7 @@ npm run test-providers                   # Verify API connections
 | division-rivalry | ESPN Schedule | ✅ Live |
 | rest-advantage | ESPN Schedule | ✅ Live |
 | indoor-outdoor-splits | Hardcoded | ⚠️ Sample data |
+| coverage-matchup | Sharp Football | ✅ Live tendencies, ~40 players tagged |
 
 #### Trade Value Metrics
 | Metric | Source | Coverage |

@@ -46,6 +46,12 @@
 ## Completed (January 2026)
 
 ### This Session
+- [x] **Coverage matchup edge** - man vs zone analysis from Sharp Football data
+  - Defense tendencies (man% vs zone%) for all 32 teams
+  - ~40 WRs/TEs tagged as man-beaters or zone-beaters
+  - Smash spots when player type opposes coverage scheme
+- [x] Fixed weather: now checks 3-hour game window (not just start time)
+- [x] Fixed weather timezone: uses stadium timezone instead of system timezone
 - [x] Live scores ticker from ESPN (shows scores or "BAL @ PIT SNF" format)
 - [x] Edge Impact tooltip explaining the score scale
 - [x] Fixed Weekly Snap % chart not rendering bars
@@ -68,7 +74,7 @@
 - [x] SNF/MNF primetime detection fixed (UTC timezone issue)
 
 ### Previous Sessions
-- [x] 15 edge detectors implemented
+- [x] 16 edge detectors implemented
 - [x] Web UI deployed to Vercel
 - [x] Waiver Wire Scanner with real Sleeper trending data
 - [x] ACCEPT/REJECT verdict system with "gun to head" recommendation
