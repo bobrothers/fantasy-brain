@@ -155,13 +155,16 @@ export default function Home() {
       {/* Header ticker */}
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg tracking-tight">
+          <div className="flex items-center gap-6">
+            <a href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity">
               <span className="text-amber-400 font-bold">FANTASY</span>
               <span className="text-zinc-400">BRAIN</span>
-            </h1>
-            <div className="h-4 w-px bg-zinc-700" />
-            <span className="text-xs text-zinc-500 uppercase tracking-widest">Edge Detection System</span>
+            </a>
+            <nav className="flex items-center gap-4 text-sm">
+              <a href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</a>
+              <a href="/trade" className="text-zinc-400 hover:text-white transition-colors">Trade</a>
+              <a href="/waivers" className="text-zinc-400 hover:text-white transition-colors">Waivers</a>
+            </nav>
           </div>
           <div className="flex items-center gap-4 text-xs">
             {restingPlayers.length > 0 && (
