@@ -13,8 +13,16 @@ interface DynastyValue {
   ageScore: number;
   injuryScore: number;
   situationScore: number;
+  draftCapitalScore: number;
+  breakoutScore: number;
+  offenseScore: number;
+  depthChartScore: number;
   yearsOfEliteProduction: number;
   tier: 'elite' | 'high' | 'mid' | 'low' | 'avoid';
+  draftCapital?: { round: number; pick: number; year: number };
+  breakoutAge?: number;
+  offensiveRanking?: number;
+  depthThreat?: { name: string; level: string };
   factors: { positive: string[]; negative: string[]; neutral: string[] };
   summary: string;
 }
@@ -26,7 +34,16 @@ interface RedraftValue {
   playoffScore: number;
   availabilityScore: number;
   usageScore: number;
+  hotColdScore: number;
+  vegasScore: number;
+  weatherScore: number;
+  scarcityScore: number;
+  primetimeScore: number;
   playoffMatchups: Array<{ week: number; opponent: string; difficulty: string }>;
+  hotColdStreak?: { last4PPG: number; seasonPPG: number; trend: string };
+  vegasImplied?: number;
+  coldWeatherGames?: number;
+  primetimeGames?: Array<{ week: number; slot: string }>;
   factors: { positive: string[]; negative: string[]; neutral: string[] };
   summary: string;
 }
@@ -454,21 +471,38 @@ function PlayerCard({
       {/* Dynasty-specific content */}
       {isDynasty && (
         <div className="p-4 space-y-4">
-          {/* Tier badge */}
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-1 text-xs font-bold uppercase border ${getTierColor(dynasty.tier)}`}>
-              {dynasty.tier}
-            </span>
-            <span className="text-xs text-zinc-500">
-              {dynasty.yearsOfEliteProduction}+ elite years left
-            </span>
+          {/* Tier badge and meta info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 text-xs font-bold uppercase border ${getTierColor(dynasty.tier)}`}>
+                {dynasty.tier}
+              </span>
+              <span className="text-xs text-zinc-500">
+                {dynasty.yearsOfEliteProduction}+ elite years left
+              </span>
+            </div>
+            {dynasty.draftCapital && (
+              <span className="text-xs text-zinc-500">
+                {dynasty.draftCapital.year} Rd {dynasty.draftCapital.round}
+              </span>
+            )}
           </div>
 
-          {/* Score breakdown */}
+          {/* Score breakdown - Core */}
           <div className="space-y-2">
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Core Value</div>
             <ScoreBar label="Age" score={dynasty.ageScore} max={35} />
             <ScoreBar label="Durability" score={dynasty.injuryScore} max={30} />
             <ScoreBar label="Situation" score={dynasty.situationScore} max={35} />
+          </div>
+
+          {/* Score breakdown - New metrics */}
+          <div className="space-y-2">
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Additional Factors</div>
+            <ScoreBar label="Draft Cap" score={dynasty.draftCapitalScore} max={10} />
+            <ScoreBar label="Breakout" score={dynasty.breakoutScore} max={10} />
+            <ScoreBar label="Offense" score={dynasty.offenseScore} max={10} />
+            <ScoreBar label="Depth" score={dynasty.depthChartScore} max={10} />
           </div>
 
           {/* Factors */}
@@ -497,11 +531,43 @@ function PlayerCard({
             </div>
           </div>
 
-          {/* Score breakdown */}
+          {/* Hot/Cold indicator */}
+          {redraft.hotColdStreak && (
+            <div className={`flex items-center justify-between px-3 py-2 ${
+              redraft.hotColdStreak.trend === 'hot' ? 'bg-red-950/30 border border-red-500/30' :
+              redraft.hotColdStreak.trend === 'cold' || redraft.hotColdStreak.trend === 'ice' ? 'bg-blue-950/30 border border-blue-500/30' :
+              'bg-zinc-800'
+            }`}>
+              <span className="text-xs text-zinc-400">Last 4 games</span>
+              <span className={`text-sm font-bold ${
+                redraft.hotColdStreak.trend === 'hot' ? 'text-red-400' :
+                redraft.hotColdStreak.trend === 'warm' ? 'text-orange-400' :
+                redraft.hotColdStreak.trend === 'cold' ? 'text-blue-400' :
+                redraft.hotColdStreak.trend === 'ice' ? 'text-cyan-400' : 'text-zinc-400'
+              }`}>
+                {redraft.hotColdStreak.last4PPG.toFixed(1)} PPG
+                {redraft.hotColdStreak.trend === 'hot' && ' 🔥'}
+                {redraft.hotColdStreak.trend === 'cold' && ' ❄️'}
+              </span>
+            </div>
+          )}
+
+          {/* Score breakdown - Core */}
           <div className="space-y-2">
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Core Value</div>
             <ScoreBar label="Schedule" score={redraft.playoffScore} max={35} />
             <ScoreBar label="Health" score={redraft.availabilityScore} max={25} />
             <ScoreBar label="Usage" score={redraft.usageScore} max={25} />
+          </div>
+
+          {/* Score breakdown - New metrics */}
+          <div className="space-y-2">
+            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Additional Factors</div>
+            <ScoreBar label="Hot/Cold" score={redraft.hotColdScore} max={15} />
+            <ScoreBar label="Vegas Env" score={redraft.vegasScore} max={12} />
+            <ScoreBar label="Weather" score={redraft.weatherScore} max={8} />
+            <ScoreBar label="Scarcity" score={redraft.scarcityScore} max={10} />
+            <ScoreBar label="Primetime" score={redraft.primetimeScore} max={8} />
           </div>
 
           {/* Factors */}

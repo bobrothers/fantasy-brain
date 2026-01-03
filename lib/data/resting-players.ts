@@ -37,8 +37,8 @@ export const RESTING_PLAYERS_WEEK_18: RestingPlayer[] = [
   // Detroit Lions
   { name: 'Amon-Ra St. Brown', team: 'DET', reason: 'Resting for playoffs', source: 'SI.com' },
 
-  // Seattle Seahawks
-  { name: 'DK Metcalf', team: 'SEA', reason: 'Resting', source: 'SI.com' },
+  // Pittsburgh Steelers
+  { name: 'DK Metcalf', team: 'PIT', reason: 'Suspended', source: 'NFL' },
 
   // New York Jets
   { name: 'Davante Adams', team: 'NYJ', reason: 'Resting', source: 'SI.com' },

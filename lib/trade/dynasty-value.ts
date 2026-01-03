@@ -217,6 +217,99 @@ const INJURY_HISTORY: Record<string, {
   },
 };
 
+// Draft capital - higher picks are more valuable in dynasty
+// Format: { round: 1-7, pick: overall pick number, year: draft year }
+const DRAFT_CAPITAL: Record<string, { round: number; pick: number; year: number }> = {
+  "Ja'Marr Chase": { round: 1, pick: 5, year: 2021 },
+  'Justin Jefferson': { round: 1, pick: 22, year: 2020 },
+  'CeeDee Lamb': { round: 1, pick: 17, year: 2020 },
+  'Tyreek Hill': { round: 5, pick: 165, year: 2016 },
+  'A.J. Brown': { round: 2, pick: 51, year: 2019 },
+  'Amon-Ra St. Brown': { round: 4, pick: 112, year: 2021 },
+  'Puka Nacua': { round: 5, pick: 177, year: 2023 },
+  'Davante Adams': { round: 2, pick: 53, year: 2014 },
+  'Cooper Kupp': { round: 3, pick: 69, year: 2017 },
+  'Saquon Barkley': { round: 1, pick: 2, year: 2018 },
+  'Bijan Robinson': { round: 1, pick: 8, year: 2023 },
+  'Jahmyr Gibbs': { round: 1, pick: 12, year: 2023 },
+  'Breece Hall': { round: 2, pick: 36, year: 2022 },
+  'Jonathan Taylor': { round: 2, pick: 41, year: 2020 },
+  'Derrick Henry': { round: 2, pick: 45, year: 2016 },
+  'Christian McCaffrey': { round: 1, pick: 8, year: 2017 },
+  "De'Von Achane": { round: 3, pick: 84, year: 2023 },
+  'Josh Jacobs': { round: 1, pick: 24, year: 2019 },
+  'Nick Chubb': { round: 2, pick: 35, year: 2018 },
+  'Travis Kelce': { round: 3, pick: 63, year: 2013 },
+  'Mark Andrews': { round: 3, pick: 86, year: 2018 },
+  'Sam LaPorta': { round: 2, pick: 34, year: 2023 },
+  'Trey McBride': { round: 2, pick: 55, year: 2022 },
+  'Patrick Mahomes': { round: 1, pick: 10, year: 2017 },
+  'Josh Allen': { round: 1, pick: 7, year: 2018 },
+  'Lamar Jackson': { round: 1, pick: 32, year: 2018 },
+  'Joe Burrow': { round: 1, pick: 1, year: 2020 },
+  'Jalen Hurts': { round: 2, pick: 53, year: 2020 },
+  'Justin Herbert': { round: 1, pick: 6, year: 2020 },
+  'Jayden Daniels': { round: 1, pick: 2, year: 2024 },
+  'Caleb Williams': { round: 1, pick: 1, year: 2024 },
+  'Drake Maye': { round: 1, pick: 3, year: 2024 },
+  'Marvin Harrison Jr.': { round: 1, pick: 4, year: 2024 },
+  'Malik Nabers': { round: 1, pick: 6, year: 2024 },
+  'Rome Odunze': { round: 1, pick: 9, year: 2024 },
+};
+
+// Breakout age - age when player first had fantasy-relevant production
+// WRs who break out before 22 tend to have longer elite careers
+const BREAKOUT_AGE: Record<string, { age: number; season: number }> = {
+  "Ja'Marr Chase": { age: 21, season: 2021 }, // Rookie breakout
+  'Justin Jefferson': { age: 21, season: 2020 }, // Rookie breakout
+  'CeeDee Lamb': { age: 21, season: 2020 }, // Rookie impact
+  'Puka Nacua': { age: 22, season: 2023 }, // Historic rookie
+  'Amon-Ra St. Brown': { age: 22, season: 2021 }, // Late rookie surge
+  'A.J. Brown': { age: 22, season: 2019 }, // Rookie breakout
+  'Tyreek Hill': { age: 22, season: 2016 }, // Rookie impact
+  'Cooper Kupp': { age: 26, season: 2021 }, // Late breakout
+  'Davante Adams': { age: 24, season: 2016 }, // Year 3 breakout
+  'Saquon Barkley': { age: 21, season: 2018 }, // Rookie breakout
+  'Bijan Robinson': { age: 21, season: 2023 }, // Rookie breakout
+  'Jahmyr Gibbs': { age: 21, season: 2023 }, // Rookie breakout
+  'Breece Hall': { age: 21, season: 2022 }, // Pre-injury breakout
+  'Jonathan Taylor': { age: 21, season: 2020 }, // Rookie breakout
+  'Christian McCaffrey': { age: 21, season: 2017 }, // Rookie impact
+  "De'Von Achane": { age: 21, season: 2023 }, // Rookie breakout
+  'Travis Kelce': { age: 26, season: 2016 }, // Late TE breakout (normal)
+  'Mark Andrews': { age: 24, season: 2019 }, // Year 2 breakout
+  'Sam LaPorta': { age: 22, season: 2023 }, // Rookie breakout (rare for TE)
+};
+
+// Team offensive rankings (1 = best, 32 = worst)
+// Based on 2024/2025 offensive efficiency
+const TEAM_OFFENSIVE_RANKING: Record<string, number> = {
+  DET: 1, BAL: 2, BUF: 3, PHI: 4, SF: 5, CIN: 6, MIA: 7, DAL: 8,
+  GB: 9, HOU: 10, LAR: 11, KC: 12, MIN: 13, TB: 14, SEA: 15, ATL: 16,
+  CHI: 17, WAS: 18, JAX: 19, IND: 20, ARI: 21, LAC: 22, DEN: 23, PIT: 24,
+  NO: 25, CLE: 26, NYJ: 27, LV: 28, TEN: 29, NE: 30, NYG: 31, CAR: 32,
+};
+
+// Depth chart threats - young backups who could take over
+const DEPTH_CHART_THREAT: Record<string, {
+  backupName: string;
+  backupAge: number;
+  threatLevel: 'high' | 'moderate' | 'low' | 'none';
+  notes: string;
+}> = {
+  'Derrick Henry': { backupName: 'Justice Hill', backupAge: 26, threatLevel: 'low', notes: 'Hill is change-of-pace only' },
+  'Saquon Barkley': { backupName: 'Kenny Gainwell', backupAge: 25, threatLevel: 'none', notes: 'Barkley is workhorse' },
+  'Jonathan Taylor': { backupName: 'Trey Sermon', backupAge: 26, threatLevel: 'low', notes: 'Clear bellcow when healthy' },
+  'Jahmyr Gibbs': { backupName: 'David Montgomery', backupAge: 28, threatLevel: 'moderate', notes: 'Split backfield limits ceiling' },
+  'Breece Hall': { backupName: 'Braelon Allen', backupAge: 20, threatLevel: 'moderate', notes: 'Allen getting more work' },
+  'Travis Kelce': { backupName: 'Noah Gray', backupAge: 25, threatLevel: 'low', notes: 'Kelce still dominant when playing' },
+  'CeeDee Lamb': { backupName: 'Jalen Tolbert', backupAge: 25, threatLevel: 'none', notes: 'Clear WR1' },
+  'Tyreek Hill': { backupName: 'Jaylen Waddle', backupAge: 26, threatLevel: 'low', notes: 'Waddle is WR2, not replacement' },
+  'Josh Jacobs': { backupName: 'MarShawn Lloyd', backupAge: 23, threatLevel: 'moderate', notes: 'Lloyd was high draft pick' },
+  'Aaron Jones': { backupName: 'Various', backupAge: 0, threatLevel: 'high', notes: 'Age and injury history' },
+  'Alvin Kamara': { backupName: 'Kendre Miller', backupAge: 23, threatLevel: 'moderate', notes: 'Miller drafted to take over' },
+};
+
 // Situation analysis - team stability, role security, contract
 // Manually researched
 const SITUATION_DATA: Record<string, {
@@ -347,8 +440,16 @@ export interface DynastyValue {
   ageScore: number;
   injuryScore: number;
   situationScore: number;
+  draftCapitalScore: number;
+  breakoutScore: number;
+  offenseScore: number;
+  depthChartScore: number;
   yearsOfEliteProduction: number;
   tier: 'elite' | 'high' | 'mid' | 'low' | 'avoid';
+  draftCapital?: { round: number; pick: number; year: number };
+  breakoutAge?: number;
+  offensiveRanking?: number;
+  depthThreat?: { name: string; level: string };
   factors: {
     positive: string[];
     negative: string[];
@@ -510,8 +611,113 @@ export function calculateDynastyValue(player: Player): DynastyValue {
   }
   situationScore = Math.max(0, Math.min(35, situationScore));
 
-  // Calculate overall
-  const overallScore = ageScore + injuryScore + situationScore;
+  // 4. Draft Capital Score (0-10 points) - bonus for high draft picks who've proven it
+  let draftCapitalScore = 5; // baseline
+  const draftData = DRAFT_CAPITAL[player.name];
+  let draftCapitalInfo: DynastyValue['draftCapital'] | undefined;
+
+  if (draftData) {
+    draftCapitalInfo = draftData;
+    if (draftData.round === 1 && draftData.pick <= 10) {
+      draftCapitalScore = 10;
+      factors.positive.push(`Top-10 pick (${draftData.year} #${draftData.pick}) - premium asset`);
+    } else if (draftData.round === 1) {
+      draftCapitalScore = 8;
+      factors.positive.push(`1st round pedigree (${draftData.year} #${draftData.pick})`);
+    } else if (draftData.round === 2) {
+      draftCapitalScore = 6;
+      factors.neutral.push(`2nd round pick (${draftData.year})`);
+    } else if (draftData.round >= 4) {
+      // Late round breakouts get extra credit for exceeding expectations
+      draftCapitalScore = 7;
+      factors.positive.push(`Late-round gem (Rd ${draftData.round}) - exceeded draft capital`);
+    }
+  }
+
+  // 5. Breakout Age Score (0-10 points) - WRs/RBs who broke out early have longer careers
+  let breakoutScore = 5; // baseline
+  let breakoutAgeInfo: number | undefined;
+  const breakout = BREAKOUT_AGE[player.name];
+
+  if (breakout) {
+    breakoutAgeInfo = breakout.age;
+    if (position === 'WR' || position === 'RB') {
+      if (breakout.age <= 21) {
+        breakoutScore = 10;
+        factors.positive.push(`Elite breakout age (${breakout.age}) - historically predicts sustained production`);
+      } else if (breakout.age <= 22) {
+        breakoutScore = 8;
+        factors.positive.push(`Early breakout (age ${breakout.age})`);
+      } else if (breakout.age >= 25) {
+        breakoutScore = 3;
+        factors.negative.push(`Late breakout (age ${breakout.age}) - shorter prime window`);
+      }
+    } else if (position === 'TE') {
+      // TEs typically break out later
+      if (breakout.age <= 23) {
+        breakoutScore = 10;
+        factors.positive.push(`Rare early TE breakout (age ${breakout.age})`);
+      } else if (breakout.age <= 25) {
+        breakoutScore = 7;
+        factors.neutral.push(`Standard TE development (breakout age ${breakout.age})`);
+      }
+    }
+  }
+
+  // 6. Offensive Ranking Score (0-10 points) - elite offenses boost value
+  let offenseScore = 5; // baseline
+  let offensiveRankingInfo: number | undefined;
+  const team = player.team;
+
+  if (team && TEAM_OFFENSIVE_RANKING[team]) {
+    const rank = TEAM_OFFENSIVE_RANKING[team];
+    offensiveRankingInfo = rank;
+
+    if (rank <= 5) {
+      offenseScore = 10;
+      factors.positive.push(`Elite offense (#${rank}) - volume and scoring opportunity`);
+    } else if (rank <= 10) {
+      offenseScore = 8;
+      factors.positive.push(`Top-10 offense (#${rank})`);
+    } else if (rank <= 16) {
+      offenseScore = 6;
+      factors.neutral.push(`Average offense (#${rank})`);
+    } else if (rank <= 24) {
+      offenseScore = 4;
+      factors.negative.push(`Below-average offense (#${rank})`);
+    } else {
+      offenseScore = 2;
+      factors.negative.push(`Bottom-tier offense (#${rank}) - limits ceiling`);
+    }
+  }
+
+  // 7. Depth Chart Threat Score (0-10 points) - deduct for looming replacements
+  let depthChartScore = 8; // baseline - most players don't have immediate threats
+  let depthThreatInfo: DynastyValue['depthThreat'] | undefined;
+  const depthThreat = DEPTH_CHART_THREAT[player.name];
+
+  if (depthThreat) {
+    depthThreatInfo = { name: depthThreat.backupName, level: depthThreat.threatLevel };
+
+    if (depthThreat.threatLevel === 'high') {
+      depthChartScore = 3;
+      factors.negative.push(`High depth chart threat: ${depthThreat.backupName} (${depthThreat.notes})`);
+    } else if (depthThreat.threatLevel === 'moderate') {
+      depthChartScore = 6;
+      factors.neutral.push(`Moderate depth threat: ${depthThreat.backupName}`);
+    } else if (depthThreat.threatLevel === 'low') {
+      depthChartScore = 9;
+      factors.positive.push(`Secure role - minimal backup threat`);
+    } else {
+      depthChartScore = 10;
+      factors.positive.push(`No depth chart concerns`);
+    }
+  }
+
+  // Calculate overall (adjusted weights - old max was 100, new max is 130)
+  // Normalize to 0-100 scale
+  const rawScore = ageScore + injuryScore + situationScore + draftCapitalScore + breakoutScore + offenseScore + depthChartScore;
+  const overallScore = Math.round((rawScore / 130) * 100);
 
   // Determine tier
   let tier: DynastyValue['tier'];
@@ -547,8 +753,16 @@ export function calculateDynastyValue(player: Player): DynastyValue {
     ageScore,
     injuryScore,
     situationScore,
+    draftCapitalScore,
+    breakoutScore,
+    offenseScore,
+    depthChartScore,
     yearsOfEliteProduction,
     tier,
+    draftCapital: draftCapitalInfo,
+    breakoutAge: breakoutAgeInfo,
+    offensiveRanking: offensiveRankingInfo,
+    depthThreat: depthThreatInfo,
     factors,
     summary,
   };

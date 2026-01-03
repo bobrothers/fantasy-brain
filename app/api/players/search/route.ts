@@ -35,30 +35,33 @@ export async function GET(request: NextRequest) {
       const nameLower = player.name.toLowerCase();
       let score = 0;
 
+      // Skip players without teams unless exact match
+      const hasTeam = !!player.team;
+
       // Exact match gets highest score
       if (nameLower === query) {
         score = 100;
       }
-      // Starts with query
+      // Starts with query (first name match)
       else if (nameLower.startsWith(query)) {
-        score = 80;
+        score = hasTeam ? 85 : 50; // Much lower for inactive
       }
       // Last name starts with query
       else if (nameLower.split(' ').pop()?.startsWith(query)) {
-        score = 70;
+        score = hasTeam ? 80 : 45; // Priority for active last name matches
       }
       // Contains query
       else if (nameLower.includes(query)) {
-        score = 50;
+        score = hasTeam ? 60 : 30;
       }
       // No match
       else {
         continue;
       }
 
-      // Boost players with teams (active)
-      if (player.team) {
-        score += 10;
+      // Extra boost for active players
+      if (hasTeam) {
+        score += 15;
       }
 
       matches.push({

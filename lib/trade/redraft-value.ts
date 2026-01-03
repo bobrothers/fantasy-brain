@@ -118,6 +118,123 @@ const SEASON_AVAILABILITY: Record<string, {
   'Tua Tagovailoa': { gamesPlayed: 10, gamesMissed: 6, currentStatus: 'questionable', recentInjury: 'Concussion' },
 };
 
+// Hot/Cold Streak - last 4 games PPG vs season average
+const HOT_COLD_STREAK: Record<string, {
+  last4PPG: number;
+  seasonPPG: number;
+  trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
+}> = {
+  'Saquon Barkley': { last4PPG: 24.5, seasonPPG: 22.1, trend: 'warm' },
+  'Derrick Henry': { last4PPG: 18.2, seasonPPG: 17.8, trend: 'neutral' },
+  'Jonathan Taylor': { last4PPG: 12.4, seasonPPG: 16.2, trend: 'cold' },
+  "Ja'Marr Chase": { last4PPG: 28.6, seasonPPG: 24.2, trend: 'hot' },
+  'CeeDee Lamb': { last4PPG: 14.8, seasonPPG: 18.2, trend: 'cold' },
+  'Tyreek Hill': { last4PPG: 12.2, seasonPPG: 16.8, trend: 'cold' },
+  'Justin Jefferson': { last4PPG: 22.4, seasonPPG: 20.1, trend: 'warm' },
+  'Amon-Ra St. Brown': { last4PPG: 21.8, seasonPPG: 19.6, trend: 'warm' },
+  'Lamar Jackson': { last4PPG: 26.2, seasonPPG: 24.8, trend: 'warm' },
+  'Josh Allen': { last4PPG: 28.4, seasonPPG: 26.2, trend: 'warm' },
+  'Patrick Mahomes': { last4PPG: 19.8, seasonPPG: 21.4, trend: 'neutral' },
+  'Joe Burrow': { last4PPG: 24.6, seasonPPG: 22.8, trend: 'warm' },
+  'Bijan Robinson': { last4PPG: 19.2, seasonPPG: 17.4, trend: 'warm' },
+  'Jahmyr Gibbs': { last4PPG: 18.4, seasonPPG: 16.8, trend: 'warm' },
+  'Travis Kelce': { last4PPG: 11.2, seasonPPG: 14.6, trend: 'cold' },
+  'De\'Von Achane': { last4PPG: 22.8, seasonPPG: 18.2, trend: 'hot' },
+  'Breece Hall': { last4PPG: 13.4, seasonPPG: 15.8, trend: 'cold' },
+  'Puka Nacua': { last4PPG: 18.6, seasonPPG: 17.2, trend: 'warm' },
+  'A.J. Brown': { last4PPG: 16.2, seasonPPG: 18.8, trend: 'neutral' },
+  'Cooper Kupp': { last4PPG: 14.8, seasonPPG: 16.4, trend: 'neutral' },
+};
+
+// Vegas Implied Points - team totals for playoff weeks (average)
+const VEGAS_IMPLIED_POINTS: Record<string, {
+  avgTeamTotal: number;  // Average implied team total for playoff weeks
+  environment: 'elite' | 'good' | 'average' | 'poor';
+}> = {
+  DET: { avgTeamTotal: 28.5, environment: 'elite' },
+  BAL: { avgTeamTotal: 27.5, environment: 'elite' },
+  BUF: { avgTeamTotal: 27.0, environment: 'elite' },
+  PHI: { avgTeamTotal: 26.5, environment: 'elite' },
+  CIN: { avgTeamTotal: 25.5, environment: 'good' },
+  SF: { avgTeamTotal: 25.0, environment: 'good' },
+  MIA: { avgTeamTotal: 24.5, environment: 'good' },
+  KC: { avgTeamTotal: 24.0, environment: 'good' },
+  GB: { avgTeamTotal: 24.0, environment: 'good' },
+  MIN: { avgTeamTotal: 23.5, environment: 'average' },
+  DAL: { avgTeamTotal: 23.0, environment: 'average' },
+  HOU: { avgTeamTotal: 23.0, environment: 'average' },
+  LAR: { avgTeamTotal: 22.5, environment: 'average' },
+  TB: { avgTeamTotal: 22.5, environment: 'average' },
+  ATL: { avgTeamTotal: 22.0, environment: 'average' },
+  SEA: { avgTeamTotal: 22.0, environment: 'average' },
+  WAS: { avgTeamTotal: 21.5, environment: 'average' },
+  ARI: { avgTeamTotal: 21.0, environment: 'average' },
+  CHI: { avgTeamTotal: 20.5, environment: 'poor' },
+  IND: { avgTeamTotal: 20.5, environment: 'poor' },
+  JAX: { avgTeamTotal: 20.0, environment: 'poor' },
+  NO: { avgTeamTotal: 20.0, environment: 'poor' },
+  PIT: { avgTeamTotal: 19.5, environment: 'poor' },
+  LAC: { avgTeamTotal: 19.5, environment: 'poor' },
+  DEN: { avgTeamTotal: 19.0, environment: 'poor' },
+  CLE: { avgTeamTotal: 18.5, environment: 'poor' },
+  NYJ: { avgTeamTotal: 18.0, environment: 'poor' },
+  TEN: { avgTeamTotal: 18.0, environment: 'poor' },
+  NE: { avgTeamTotal: 17.5, environment: 'poor' },
+  LV: { avgTeamTotal: 17.5, environment: 'poor' },
+  NYG: { avgTeamTotal: 17.0, environment: 'poor' },
+  CAR: { avgTeamTotal: 16.5, environment: 'poor' },
+};
+
+// Playoff Weather - cold/bad weather venues in weeks 15-17
+const COLD_WEATHER_VENUES: Set<string> = new Set([
+  'BUF', 'GB', 'CHI', 'NE', 'DEN', 'CLE', 'PIT', 'CIN', 'BAL',
+  'NYJ', 'NYG', 'PHI', 'WAS', 'KC', 'MIN', // MIN is dome but cold travel
+]);
+
+// Primetime games in playoff weeks (15-17)
+const PRIMETIME_PLAYOFF_GAMES: Record<string, Array<{ week: number; slot: 'SNF' | 'MNF' | 'TNF' | 'SAT' }>> = {
+  // Week 15
+  'LAC': [{ week: 15, slot: 'TNF' }],
+  'TB': [{ week: 15, slot: 'TNF' }],
+  'PIT': [{ week: 15, slot: 'SNF' }],
+  'PHI': [{ week: 15, slot: 'SNF' }],
+  'CHI': [{ week: 15, slot: 'MNF' }],
+  'MIN': [{ week: 15, slot: 'MNF' }],
+  // Week 16 (Christmas games + regular primetime)
+  'KC': [{ week: 16, slot: 'SAT' }],
+  'HOU': [{ week: 16, slot: 'SAT' }],
+  'BAL': [{ week: 16, slot: 'SAT' }],
+  // Week 17
+  'DET': [{ week: 17, slot: 'SNF' }],
+  'SF': [{ week: 17, slot: 'SNF' }],
+};
+
+// Positional scarcity - bonus for elite players at scarce positions
+const POSITIONAL_SCARCITY: Record<string, {
+  tier: 'elite' | 'high' | 'mid' | 'replacement';
+  scarcityBonus: number;
+}> = {
+  // Elite TEs are rare - big bonus
+  'Travis Kelce': { tier: 'elite', scarcityBonus: 10 },
+  'Mark Andrews': { tier: 'elite', scarcityBonus: 8 },
+  'Sam LaPorta': { tier: 'elite', scarcityBonus: 8 },
+  'Trey McBride': { tier: 'high', scarcityBonus: 6 },
+  'George Kittle': { tier: 'high', scarcityBonus: 6 },
+  'David Njoku': { tier: 'high', scarcityBonus: 5 },
+  'Dalton Kincaid': { tier: 'high', scarcityBonus: 5 },
+  // Elite rushing QBs
+  'Lamar Jackson': { tier: 'elite', scarcityBonus: 8 },
+  'Josh Allen': { tier: 'elite', scarcityBonus: 8 },
+  'Jalen Hurts': { tier: 'elite', scarcityBonus: 6 },
+  'Jayden Daniels': { tier: 'high', scarcityBonus: 5 },
+};
+
+// Bye weeks remaining (by week 18 most are done, but just in case)
+const REMAINING_BYE: Record<string, number> = {
+  // By playoffs (week 15+) all teams have had their bye
+  // This would be populated dynamically from schedule service
+};
+
 // Recent usage/target share trends (last 4 weeks vs season avg)
 const USAGE_TRENDS: Record<string, {
   targetShare?: number; // WR/TE - current
@@ -150,7 +267,16 @@ export interface RedraftValue {
   playoffScore: number;
   availabilityScore: number;
   usageScore: number;
+  hotColdScore: number;
+  vegasScore: number;
+  weatherScore: number;
+  scarcityScore: number;
+  primetimeScore: number;
   playoffMatchups: Array<{ week: number; opponent: string; difficulty: 'smash' | 'good' | 'neutral' | 'tough' | 'avoid' }>;
+  hotColdStreak?: { last4PPG: number; seasonPPG: number; trend: string };
+  vegasImplied?: number;
+  coldWeatherGames?: number;
+  primetimeGames?: Array<{ week: number; slot: string }>;
   factors: {
     positive: string[];
     negative: string[];
@@ -316,8 +442,117 @@ export function calculateRedraftValue(player: Player): RedraftValue {
   // Simplified: use playoff score as proxy
   const scheduleScore = Math.round(playoffScore * 0.4);
 
-  // Calculate overall
-  const overallScore = playoffScore + availabilityScore + usageScore + scheduleScore;
+  // 5. Hot/Cold Streak Score (0-15 points) - recent performance vs season average
+  let hotColdScore = 8; // baseline
+  let hotColdInfo: RedraftValue['hotColdStreak'] | undefined;
+  const streak = HOT_COLD_STREAK[player.name];
+
+  if (streak) {
+    hotColdInfo = { last4PPG: streak.last4PPG, seasonPPG: streak.seasonPPG, trend: streak.trend };
+    const ppgDiff = streak.last4PPG - streak.seasonPPG;
+
+    if (streak.trend === 'hot') {
+      hotColdScore = 15;
+      factors.positive.push(`🔥 HOT: ${streak.last4PPG.toFixed(1)} PPG last 4 (${ppgDiff > 0 ? '+' : ''}${ppgDiff.toFixed(1)} vs season avg)`);
+    } else if (streak.trend === 'warm') {
+      hotColdScore = 12;
+      factors.positive.push(`Trending up: ${streak.last4PPG.toFixed(1)} PPG last 4 games`);
+    } else if (streak.trend === 'cold') {
+      hotColdScore = 4;
+      factors.negative.push(`❄️ COLD: ${streak.last4PPG.toFixed(1)} PPG last 4 (${ppgDiff.toFixed(1)} vs season avg)`);
+    } else if (streak.trend === 'ice') {
+      hotColdScore = 0;
+      factors.negative.push(`🧊 ICE COLD: ${streak.last4PPG.toFixed(1)} PPG last 4 - major concern`);
+    }
+  }
+
+  // 6. Vegas Implied Score (0-12 points) - team's scoring environment
+  let vegasScore = 6; // baseline
+  let vegasImpliedInfo: number | undefined;
+  const vegas = team ? VEGAS_IMPLIED_POINTS[team] : undefined;
+
+  if (vegas) {
+    vegasImpliedInfo = vegas.avgTeamTotal;
+
+    if (vegas.environment === 'elite') {
+      vegasScore = 12;
+      factors.positive.push(`Elite Vegas environment (${vegas.avgTeamTotal} implied pts/game)`);
+    } else if (vegas.environment === 'good') {
+      vegasScore = 9;
+      factors.positive.push(`Good scoring environment (${vegas.avgTeamTotal} implied)`);
+    } else if (vegas.environment === 'average') {
+      vegasScore = 6;
+      factors.neutral.push(`Average team scoring projection`);
+    } else {
+      vegasScore = 3;
+      factors.negative.push(`Poor Vegas environment (${vegas.avgTeamTotal} implied pts/game)`);
+    }
+  }
+
+  // 7. Weather Score (0-8 points) - cold weather impact on playoffs
+  let weatherScore = 6; // baseline
+  let coldWeatherGamesCount = 0;
+
+  if (schedule) {
+    const weeks = [schedule.week15, schedule.week16, schedule.week17];
+    for (const opp of weeks) {
+      if (COLD_WEATHER_VENUES.has(opp)) {
+        coldWeatherGamesCount++;
+      }
+    }
+
+    if (coldWeatherGamesCount === 0) {
+      weatherScore = 8;
+      factors.positive.push('No cold weather playoff games');
+    } else if (coldWeatherGamesCount === 1) {
+      weatherScore = 6;
+      factors.neutral.push(`1 cold weather game in playoffs`);
+    } else if (coldWeatherGamesCount >= 2) {
+      weatherScore = 3;
+      factors.negative.push(`${coldWeatherGamesCount} cold weather playoff games`);
+    }
+  }
+
+  // 8. Positional Scarcity Score (0-10 points) - TE premium, elite QB bonus
+  let scarcityScore = 3; // baseline (most players get minimal bonus)
+  const scarcity = POSITIONAL_SCARCITY[player.name];
+
+  if (scarcity) {
+    scarcityScore = scarcity.scarcityBonus;
+    if (scarcity.tier === 'elite') {
+      factors.positive.push(`Elite at scarce position (+${scarcity.scarcityBonus} value)`);
+    } else if (scarcity.tier === 'high') {
+      factors.positive.push(`High-end at scarce position`);
+    }
+  } else if (position === 'TE') {
+    // Generic TE scarcity
+    scarcityScore = 4;
+    factors.neutral.push('TE positional scarcity');
+  } else if (position === 'QB') {
+    // Generic QB - slight bonus
+    scarcityScore = 3;
+  }
+
+  // 9. Primetime Score (0-8 points) - primetime playoff games
+  let primetimeScore = 5; // baseline
+  let primetimeGamesInfo: RedraftValue['primetimeGames'] | undefined;
+  const primetimeGames = team ? PRIMETIME_PLAYOFF_GAMES[team] : undefined;
+
+  if (primetimeGames && primetimeGames.length > 0) {
+    primetimeGamesInfo = primetimeGames;
+    if (primetimeGames.length >= 2) {
+      primetimeScore = 8;
+      factors.positive.push(`${primetimeGames.length} primetime playoff games - high visibility`);
+    } else {
+      primetimeScore = 7;
+      factors.neutral.push(`1 primetime game in playoffs (${primetimeGames[0].slot} Wk ${primetimeGames[0].week})`);
+    }
+  }
+
+  // Calculate overall (adjusted - old max was ~100, new max is ~130)
+  // Normalize to 0-100 scale
+  const rawScore = playoffScore + availabilityScore + usageScore + scheduleScore + hotColdScore + vegasScore + weatherScore + scarcityScore + primetimeScore;
+  const overallScore = Math.round((rawScore / 130) * 100);
 
   // Generate summary
   let summary = `${player.name}: `;
@@ -340,7 +575,16 @@ export function calculateRedraftValue(player: Player): RedraftValue {
     playoffScore,
     availabilityScore,
     usageScore,
+    hotColdScore,
+    vegasScore,
+    weatherScore,
+    scarcityScore,
+    primetimeScore,
     playoffMatchups,
+    hotColdStreak: hotColdInfo,
+    vegasImplied: vegasImpliedInfo,
+    coldWeatherGames: coldWeatherGamesCount,
+    primetimeGames: primetimeGamesInfo,
     factors,
     summary,
   };
