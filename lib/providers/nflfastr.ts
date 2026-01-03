@@ -498,6 +498,129 @@ async function getRedZoneUsage(playerName: string): Promise<{
 }
 
 /**
+ * Get usage trend data for charting (6 weeks of data with week numbers)
+ */
+async function getUsageTrend(
+  playerName: string,
+  numWeeks: number = 6
+): Promise<{
+  position: string;
+  team: string;
+  weeks: Array<{
+    week: number;
+    targetShare?: number;
+    carryShare?: number;
+    targets?: number;
+    carries?: number;
+  }>;
+  avgTargetShare?: number;
+  avgCarryShare?: number;
+  targetTrend?: 'up' | 'down' | 'stable';
+  carryTrend?: 'up' | 'down' | 'stable';
+  trendChange?: number; // Percentage change from first to last
+} | null> {
+  const stats = await getPlayerRecentStats(playerName, numWeeks);
+
+  if (stats.length < 2) return null;
+
+  const allStats = await loadPlayerStats();
+  const team = stats[0].team;
+  const position = stats[0].position;
+
+  // Sort by week ascending for proper charting
+  const sortedStats = [...stats].sort((a, b) => a.week - b.week);
+
+  const weeks: Array<{
+    week: number;
+    targetShare?: number;
+    carryShare?: number;
+    targets?: number;
+    carries?: number;
+  }> = [];
+
+  const targetShares: number[] = [];
+  const carryShares: number[] = [];
+
+  for (const weekStat of sortedStats) {
+    const teamWeekStats = allStats.filter(s => s.team === team && s.week === weekStat.week);
+    const teamTargets = teamWeekStats.reduce((sum, s) => sum + (s.targets || 0), 0);
+    const teamCarries = teamWeekStats.reduce((sum, s) => sum + (s.carries || 0), 0);
+
+    const weekData: typeof weeks[0] = { week: weekStat.week };
+
+    if (teamTargets > 0 && weekStat.targets) {
+      const share = (weekStat.targets / teamTargets) * 100;
+      weekData.targetShare = Math.round(share * 10) / 10;
+      weekData.targets = weekStat.targets;
+      targetShares.push(share);
+    }
+
+    if (teamCarries > 0 && weekStat.carries) {
+      const share = (weekStat.carries / teamCarries) * 100;
+      weekData.carryShare = Math.round(share * 10) / 10;
+      weekData.carries = weekStat.carries;
+      carryShares.push(share);
+    }
+
+    weeks.push(weekData);
+  }
+
+  // Calculate averages and trends
+  const avgTargetShare = targetShares.length > 0
+    ? Math.round((targetShares.reduce((a, b) => a + b, 0) / targetShares.length) * 10) / 10
+    : undefined;
+
+  const avgCarryShare = carryShares.length > 0
+    ? Math.round((carryShares.reduce((a, b) => a + b, 0) / carryShares.length) * 10) / 10
+    : undefined;
+
+  // Calculate trends
+  let targetTrend: 'up' | 'down' | 'stable' | undefined;
+  let carryTrend: 'up' | 'down' | 'stable' | undefined;
+  let trendChange: number | undefined;
+
+  if (targetShares.length >= 2) {
+    const firstHalf = targetShares.slice(0, Math.floor(targetShares.length / 2));
+    const secondHalf = targetShares.slice(Math.floor(targetShares.length / 2));
+    const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+
+    if (secondAvg > firstAvg * 1.15) targetTrend = 'up';
+    else if (secondAvg < firstAvg * 0.85) targetTrend = 'down';
+    else targetTrend = 'stable';
+
+    trendChange = Math.round((secondAvg - firstAvg) * 10) / 10;
+  }
+
+  if (carryShares.length >= 2) {
+    const firstHalf = carryShares.slice(0, Math.floor(carryShares.length / 2));
+    const secondHalf = carryShares.slice(Math.floor(carryShares.length / 2));
+    const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+
+    if (secondAvg > firstAvg * 1.15) carryTrend = 'up';
+    else if (secondAvg < firstAvg * 0.85) carryTrend = 'down';
+    else carryTrend = 'stable';
+
+    // Use carry trend change for RBs
+    if (position === 'RB') {
+      trendChange = Math.round((secondAvg - firstAvg) * 10) / 10;
+    }
+  }
+
+  return {
+    position,
+    team,
+    weeks,
+    avgTargetShare,
+    avgCarryShare,
+    targetTrend,
+    carryTrend,
+    trendChange,
+  };
+}
+
+/**
  * Clear cached data (useful for refreshing)
  */
 function clearCache(): void {
@@ -511,6 +634,7 @@ export const nflfastr = {
   getPlayerRecentStats,
   getTargetShare,
   getCarryShare,
+  getUsageTrend,
   getPerformanceVsTeam,
   getEmergingReceivers,
   getRedZoneUsage,

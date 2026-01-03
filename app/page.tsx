@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import PlayerAutocomplete from '@/components/PlayerAutocomplete';
 import LockTimer from '@/components/LockTimer';
+import UsageTrendChart from '@/components/UsageTrendChart';
 
 interface EdgeSignal {
   type: string;
@@ -340,6 +341,12 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Usage Trend Chart */}
+            <UsageTrendChart
+              playerName={result.player.name}
+              position={result.player.position}
+            />
 
             {/* Legend */}
             <div className="flex items-center gap-6 text-xs text-zinc-500 mb-2">
