@@ -573,28 +573,51 @@ export const weather = {
 
       const data: OpenMeteoResponse = await response.json();
       
-      // Find the hour closest to game time
+      // Find the game start hour and check weather across full game (3 hours)
       const gameHour = gameDate.getHours();
-      const hourIndex = data.hourly.time.findIndex(t => {
+      const startIndex = data.hourly.time.findIndex(t => {
         const hour = new Date(t).getHours();
         return hour === gameHour;
       });
 
-      if (hourIndex === -1) {
+      if (startIndex === -1) {
         console.warn(`Could not find weather for game hour: ${gameHour}`);
         return null;
       }
 
+      // Check 3-hour window (game duration) for worst conditions
+      const endIndex = Math.min(startIndex + 3, data.hourly.time.length);
+      let maxPrecip = 0;
+      let maxPrecipProb = 0;
+      let maxWind = 0;
+      let minTemp = 999;
+      let worstWeatherCode = 0;
+      let worstWindDir = 0;
+
+      for (let i = startIndex; i < endIndex; i++) {
+        if (data.hourly.precipitation[i] > maxPrecip) {
+          maxPrecip = data.hourly.precipitation[i];
+          worstWeatherCode = data.hourly.weather_code[i];
+        }
+        maxPrecipProb = Math.max(maxPrecipProb, data.hourly.precipitation_probability[i]);
+        if (data.hourly.wind_speed_10m[i] > maxWind) {
+          maxWind = data.hourly.wind_speed_10m[i];
+          worstWindDir = data.hourly.wind_direction_10m[i];
+        }
+        minTemp = Math.min(minTemp, data.hourly.temperature_2m[i]);
+      }
+
+      // Use worst conditions across game window
       return {
         gameId: `${homeTeam}-${gameTime}`,
         stadium: stadium.name,
         isDome: false,
-        temperature: Math.round(data.hourly.temperature_2m[hourIndex]),
-        windSpeed: Math.round(data.hourly.wind_speed_10m[hourIndex]),
-        windDirection: degreesToDirection(data.hourly.wind_direction_10m[hourIndex]),
-        precipitation: data.hourly.precipitation[hourIndex],
-        precipProbability: data.hourly.precipitation_probability[hourIndex],
-        conditions: weatherCodeToConditions(data.hourly.weather_code[hourIndex]),
+        temperature: Math.round(minTemp),
+        windSpeed: Math.round(maxWind),
+        windDirection: degreesToDirection(worstWindDir),
+        precipitation: maxPrecip,
+        precipProbability: maxPrecipProb,
+        conditions: weatherCodeToConditions(worstWeatherCode),
       };
     } catch (error) {
       console.error('Weather fetch failed:', error);
