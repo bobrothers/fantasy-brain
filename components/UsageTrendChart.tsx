@@ -153,7 +153,7 @@ export default function UsageTrendChart({ playerName, position }: Props) {
                   fontSize="10"
                   fill="#52525b"
                 >
-                  W{data.weeks[i].week}
+                  W{data.weeks?.[i]?.week}
                 </text>
               </g>
             ))}
