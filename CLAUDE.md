@@ -123,3 +123,22 @@ ODDS_API_KEY=your_key_here   # Required for betting signals
 - **GitHub**: https://github.com/bobrothers/fantasy-brain
 - **Vercel**: https://fantasy-brain.vercel.app
 - Environment variable `ODDS_API_KEY` must be set in Vercel dashboard
+
+## Claude Code Agents
+
+Custom agents are available in `.claude/agents/`:
+
+| Agent | Purpose | When to Use |
+|-------|---------|-------------|
+| `build-validator.md` | Runs build, tests, lint and reports pass/fail | Before commits, PRs, after merges |
+| `code-architect.md` | Plans architecture with ASCII diagrams | Before implementing new features |
+| `code-simplifier.md` | Identifies and removes unnecessary complexity | After shipping, during refactors |
+| `verify-app.md` | Tests features from user perspective | After deploys, when issues reported |
+
+### Usage
+Reference agents in conversation: "Use the build-validator agent to check the build"
+
+## Working Files
+
+- `todo.md` - Track work in progress and planned features
+- `scratch.md` - Notes, ideas, temporary work
