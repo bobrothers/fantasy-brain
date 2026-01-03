@@ -926,7 +926,7 @@ export const sleeper = {
   },
 
   /**
-   * Get player's cold weather performance (games at outdoor cold-weather stadiums, weeks 10+)
+   * Get player's cold weather performance (games at outdoor cold-weather stadiums)
    * Returns fantasy points comparison: cold games vs all games
    */
   async getColdWeatherPerformance(playerName: string): Promise<{
@@ -937,13 +937,18 @@ export const sleeper = {
     allGameCount: number;
     differential: number;
   } | null> {
-    // Cold-weather outdoor stadiums (likely <40°F in weeks 10+)
+    // Cold-weather outdoor stadiums by tier
+    // Tier 1: Very cold (can be cold even in October) - weeks 8+
+    const VERY_COLD_STADIUMS = new Set(['BUF', 'GB', 'CHI', 'NE', 'DEN']);
+    // Tier 2: Cold in late season - weeks 10+
     const COLD_STADIUMS = new Set([
       'BUF', 'NE', 'NYJ', 'NYG', // Northeast
       'CLE', 'PIT', 'CIN', 'BAL', // Midwest/Mid-Atlantic
-      'GB', 'CHI', // Upper Midwest
+      'GB', 'CHI', 'MIN', // Upper Midwest (MIN outdoor for some games)
       'DEN', 'KC', // Mountain/Plains
       'PHI', 'WAS', // Mid-Atlantic
+      'SEA', // Pacific Northwest (cold/rainy in Dec)
+      'IND', // Can be cold
     ]);
 
     // Get player info
@@ -958,11 +963,11 @@ export const sleeper = {
     const season = parseInt(nflState.season);
     const currentWeek = nflState.week;
 
-    // Fetch schedule for weeks 10+ to determine cold games accurately
+    // Fetch schedule for cold weather weeks
     const schedule = new Map<number, { opponent: string; isHome: boolean; venue: string }>();
 
-    // Use ESPN for schedule data
-    for (let week = 10; week <= currentWeek; week++) {
+    // Use ESPN for schedule data - start from week 8 for very cold stadiums
+    for (let week = 8; week <= currentWeek; week++) {
       try {
         const schedUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`;
         const schedResp = await fetch(schedUrl);
@@ -1010,19 +1015,22 @@ export const sleeper = {
         const points = playerStats.pts_ppr;
         allGames.push({ week, points });
 
-        // For weeks 10+, check if it was a cold game using schedule
-        if (week >= 10) {
-          const gameInfo = schedule.get(week);
-          if (gameInfo) {
-            const venue = gameInfo.venue;
-            if (COLD_STADIUMS.has(venue)) {
-              coldGames.push({
-                week,
-                opponent: gameInfo.opponent,
-                points,
-                isHome: gameInfo.isHome,
-              });
-            }
+        // Check if it was a cold game using schedule
+        // Week 8-9: Only very cold stadiums (BUF, GB, CHI, NE, DEN)
+        // Week 10+: All cold stadiums
+        const gameInfo = schedule.get(week);
+        if (gameInfo) {
+          const venue = gameInfo.venue;
+          const isVeryCold = VERY_COLD_STADIUMS.has(venue);
+          const isCold = COLD_STADIUMS.has(venue);
+
+          if ((week >= 10 && isCold) || (week >= 8 && week < 10 && isVeryCold)) {
+            coldGames.push({
+              week,
+              opponent: gameInfo.opponent,
+              points,
+              isHome: gameInfo.isHome,
+            });
           }
         }
       } catch {

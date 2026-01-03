@@ -48,7 +48,22 @@ export default function ColdWeatherPerformance({ playerName }: Props) {
   }
 
   if (!data?.available || !data.coldGames || data.coldGames.length === 0) {
-    return null;
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">🥶</span>
+          <span className="text-xs text-zinc-500 uppercase tracking-wider">
+            Cold Weather Performance
+          </span>
+        </div>
+        <div className="text-sm text-zinc-600">
+          No cold weather games yet this season
+        </div>
+        <div className="text-[10px] text-zinc-700 mt-1">
+          Tracks games at outdoor northern stadiums in cold months
+        </div>
+      </div>
+    );
   }
 
   const differential = data.differential || 0;
@@ -100,7 +115,7 @@ export default function ColdWeatherPerformance({ playerName }: Props) {
       </div>
 
       <div className="text-[10px] text-zinc-600 mt-2">
-        Cold games = weeks 10+ at outdoor northern stadiums
+        Cold games = outdoor northern stadiums in Nov-Jan
       </div>
     </div>
   );
