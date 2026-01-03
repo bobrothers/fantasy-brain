@@ -663,6 +663,269 @@ export const sleeper = {
   },
 
   /**
+   * Get deep stats for a player (snap trends, air yards, target premium, etc.)
+   */
+  async getDeepStats(playerName: string): Promise<{
+    // Snap Count Trend
+    snapTrend: {
+      recentAvg: number; // Last 3 weeks snap %
+      seasonAvg: number;
+      trending: 'up' | 'down' | 'stable';
+      weeklySnaps: Array<{ week: number; snapPct: number }>;
+    };
+    // Air Yards Share
+    airYards: {
+      share: number; // % of team air yards
+      total: number; // Total air yards
+      avgPerGame: number;
+      rank: number; // Team rank
+    };
+    // Target Premium (targets per snap)
+    targetPremium: {
+      targetsPerSnap: number;
+      leagueAvg: number; // Approximate league avg
+      premium: number; // How much above/below avg
+    };
+    // Divisional Performance
+    divisional: {
+      avgPoints: number;
+      nonDivAvgPoints: number;
+      differential: number;
+      games: Array<{ week: number; opponent: string; points: number }>;
+    } | null;
+    // Second Half Surge (approximated by 2nd half of season performance)
+    secondHalf: {
+      firstHalfAvg: number;
+      secondHalfAvg: number;
+      surge: number;
+    } | null;
+  } | null> {
+    const player = await this.getPlayerByName(playerName);
+    if (!player || !player.team) return null;
+
+    const playerId = player.id;
+    const team = player.team;
+    const position = player.position;
+
+    const nflState = await this.getNflState();
+    const season = parseInt(nflState.season);
+    const currentWeek = nflState.week;
+
+    // NFL Divisions for divisional game detection
+    const NFL_DIVISIONS: Record<string, string[]> = {
+      'AFC East': ['BUF', 'MIA', 'NE', 'NYJ'],
+      'AFC North': ['BAL', 'CIN', 'CLE', 'PIT'],
+      'AFC South': ['HOU', 'IND', 'JAX', 'TEN'],
+      'AFC West': ['DEN', 'KC', 'LAC', 'LV'],
+      'NFC East': ['DAL', 'NYG', 'PHI', 'WAS'],
+      'NFC North': ['CHI', 'DET', 'GB', 'MIN'],
+      'NFC South': ['ATL', 'CAR', 'NO', 'TB'],
+      'NFC West': ['ARI', 'LAR', 'SF', 'SEA'],
+    };
+
+    // Find player's division rivals
+    let divisionRivals: string[] = [];
+    for (const [_, teams] of Object.entries(NFL_DIVISIONS)) {
+      if (teams.includes(team)) {
+        divisionRivals = teams.filter(t => t !== team);
+        break;
+      }
+    }
+
+    // Get all players for team calculations
+    const allPlayers = await this.getAllPlayers();
+    const teammates = new Map<string, Player>();
+    for (const [id, p] of allPlayers) {
+      if (p.team === team) {
+        teammates.set(id, p);
+      }
+    }
+
+    // Collect weekly stats
+    const weeklyData: Array<{
+      week: number;
+      snapPct: number;
+      airYards: number;
+      targets: number;
+      snaps: number;
+      points: number;
+      opponent?: string;
+      isDivisional?: boolean;
+    }> = [];
+
+    let teamTotalAirYards = 0;
+    let playerTotalAirYards = 0;
+
+    // Fetch schedule for divisional game detection
+    const schedule = new Map<number, { opponent: string }>();
+    for (let week = 1; week <= currentWeek; week++) {
+      try {
+        const schedUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`;
+        const schedResp = await fetch(schedUrl);
+        if (schedResp.ok) {
+          const schedData = await schedResp.json();
+          for (const event of schedData.events || []) {
+            const homeTeam = event.competitions?.[0]?.competitors?.find((c: { homeAway: string }) => c.homeAway === 'home')?.team?.abbreviation;
+            const awayTeam = event.competitions?.[0]?.competitors?.find((c: { homeAway: string }) => c.homeAway === 'away')?.team?.abbreviation;
+            if (homeTeam === team) {
+              schedule.set(week, { opponent: awayTeam });
+            } else if (awayTeam === team) {
+              schedule.set(week, { opponent: homeTeam });
+            }
+          }
+        }
+      } catch {
+        // Continue without schedule data for this week
+      }
+    }
+
+    // Fetch weekly stats
+    for (let week = 1; week <= currentWeek; week++) {
+      try {
+        const url = `https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`;
+        const cached = cache.get(url);
+        let weekStats: Record<string, Record<string, number>>;
+
+        if (cached && cached.expires > Date.now()) {
+          weekStats = cached.data as Record<string, Record<string, number>>;
+        } else {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          weekStats = await response.json();
+          cache.set(url, { data: weekStats, expires: Date.now() + 60 * 60 * 1000 });
+        }
+
+        const playerStats = weekStats[playerId];
+        if (!playerStats || !playerStats.off_snp) continue;
+
+        const snapPct = playerStats.tm_off_snp > 0
+          ? (playerStats.off_snp / playerStats.tm_off_snp) * 100
+          : 0;
+
+        const airYards = playerStats.rec_air_yd || 0;
+        playerTotalAirYards += airYards;
+
+        // Calculate team air yards for this week
+        let weekTeamAirYards = 0;
+        for (const [id] of teammates) {
+          const tmStats = weekStats[id];
+          if (tmStats?.rec_air_yd) {
+            weekTeamAirYards += tmStats.rec_air_yd;
+          }
+        }
+        teamTotalAirYards += weekTeamAirYards;
+
+        const gameInfo = schedule.get(week);
+        const isDivisional = gameInfo ? divisionRivals.includes(gameInfo.opponent) : false;
+
+        weeklyData.push({
+          week,
+          snapPct: Math.round(snapPct * 10) / 10,
+          airYards,
+          targets: playerStats.rec_tgt || 0,
+          snaps: playerStats.off_snp || 0,
+          points: playerStats.pts_ppr || 0,
+          opponent: gameInfo?.opponent,
+          isDivisional,
+        });
+      } catch {
+        continue;
+      }
+    }
+
+    if (weeklyData.length < 3) return null;
+
+    // Calculate Snap Trend
+    const recentWeeks = weeklyData.slice(-3);
+    const recentSnapAvg = recentWeeks.reduce((sum, w) => sum + w.snapPct, 0) / recentWeeks.length;
+    const seasonSnapAvg = weeklyData.reduce((sum, w) => sum + w.snapPct, 0) / weeklyData.length;
+    const snapTrending = recentSnapAvg > seasonSnapAvg * 1.05 ? 'up' :
+                         recentSnapAvg < seasonSnapAvg * 0.95 ? 'down' : 'stable';
+
+    // Calculate Air Yards Share
+    const airYardsShare = teamTotalAirYards > 0
+      ? (playerTotalAirYards / teamTotalAirYards) * 100
+      : 0;
+    const avgAirYardsPerGame = playerTotalAirYards / weeklyData.length;
+
+    // Calculate team air yards rank
+    const teammateAirYards: Array<{ id: string; total: number }> = [];
+    for (const [id] of teammates) {
+      let total = 0;
+      for (let week = 1; week <= currentWeek; week++) {
+        const url = `https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`;
+        const cached = cache.get(url);
+        if (cached) {
+          const weekStats = cached.data as Record<string, Record<string, number>>;
+          total += weekStats[id]?.rec_air_yd || 0;
+        }
+      }
+      if (total > 0) {
+        teammateAirYards.push({ id, total });
+      }
+    }
+    teammateAirYards.sort((a, b) => b.total - a.total);
+    const airYardsRank = teammateAirYards.findIndex(t => t.id === playerId) + 1;
+
+    // Calculate Target Premium
+    const totalTargets = weeklyData.reduce((sum, w) => sum + w.targets, 0);
+    const totalSnaps = weeklyData.reduce((sum, w) => sum + w.snaps, 0);
+    const targetsPerSnap = totalSnaps > 0 ? (totalTargets / totalSnaps) * 100 : 0;
+    // League average is roughly 15-20% for primary receivers
+    const leagueAvg = position === 'TE' ? 12 : position === 'RB' ? 8 : 18;
+    const targetPremium = targetsPerSnap - leagueAvg;
+
+    // Calculate Divisional Performance
+    const divisionalGames = weeklyData.filter(w => w.isDivisional);
+    const nonDivGames = weeklyData.filter(w => !w.isDivisional);
+    const divisional = divisionalGames.length >= 1 ? {
+      avgPoints: Math.round((divisionalGames.reduce((sum, g) => sum + g.points, 0) / divisionalGames.length) * 10) / 10,
+      nonDivAvgPoints: nonDivGames.length > 0
+        ? Math.round((nonDivGames.reduce((sum, g) => sum + g.points, 0) / nonDivGames.length) * 10) / 10
+        : 0,
+      differential: 0,
+      games: divisionalGames.map(g => ({ week: g.week, opponent: g.opponent || '', points: g.points })),
+    } : null;
+    if (divisional) {
+      divisional.differential = Math.round((divisional.avgPoints - divisional.nonDivAvgPoints) * 10) / 10;
+    }
+
+    // Calculate Second Half Surge (weeks 9+ vs weeks 1-8)
+    const firstHalfGames = weeklyData.filter(w => w.week <= 8);
+    const secondHalfGames = weeklyData.filter(w => w.week >= 9);
+    const secondHalf = firstHalfGames.length >= 2 && secondHalfGames.length >= 2 ? {
+      firstHalfAvg: Math.round((firstHalfGames.reduce((sum, g) => sum + g.points, 0) / firstHalfGames.length) * 10) / 10,
+      secondHalfAvg: Math.round((secondHalfGames.reduce((sum, g) => sum + g.points, 0) / secondHalfGames.length) * 10) / 10,
+      surge: 0,
+    } : null;
+    if (secondHalf) {
+      secondHalf.surge = Math.round((secondHalf.secondHalfAvg - secondHalf.firstHalfAvg) * 10) / 10;
+    }
+
+    return {
+      snapTrend: {
+        recentAvg: Math.round(recentSnapAvg * 10) / 10,
+        seasonAvg: Math.round(seasonSnapAvg * 10) / 10,
+        trending: snapTrending,
+        weeklySnaps: weeklyData.map(w => ({ week: w.week, snapPct: w.snapPct })),
+      },
+      airYards: {
+        share: Math.round(airYardsShare * 10) / 10,
+        total: Math.round(playerTotalAirYards),
+        avgPerGame: Math.round(avgAirYardsPerGame * 10) / 10,
+        rank: airYardsRank || 1,
+      },
+      targetPremium: {
+        targetsPerSnap: Math.round(targetsPerSnap * 10) / 10,
+        leagueAvg,
+        premium: Math.round(targetPremium * 10) / 10,
+      },
+      divisional,
+      secondHalf,
+    };
+  },
+
+  /**
    * Get player's cold weather performance (games at outdoor cold-weather stadiums, weeks 10+)
    * Returns fantasy points comparison: cold games vs all games
    */

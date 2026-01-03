@@ -5,6 +5,7 @@ import PlayerAutocomplete from '@/components/PlayerAutocomplete';
 import LockTimer from '@/components/LockTimer';
 import UsageTrendChart from '@/components/UsageTrendChart';
 import ColdWeatherPerformance from '@/components/ColdWeatherPerformance';
+import DeepStats from '@/components/DeepStats';
 
 interface EdgeSignal {
   type: string;
@@ -351,6 +352,12 @@ export default function Home() {
 
             {/* Cold Weather Performance */}
             <ColdWeatherPerformance playerName={result.player.name} />
+
+            {/* Deep Stats */}
+            <DeepStats
+              playerName={result.player.name}
+              position={result.player.position}
+            />
 
             {/* Legend */}
             <div className="flex items-center gap-6 text-xs text-zinc-500 mb-2">
