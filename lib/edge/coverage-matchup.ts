@@ -87,6 +87,12 @@ const PLAYER_COVERAGE_PREFERENCES: Record<string, { preference: CoveragePreferen
   'Cooper Kupp': { preference: 'man', reason: 'Route running master, finds space vs man' },
   'Brandon Aiyuk': { preference: 'man', reason: 'YAC monster, beats press with technique' },
   'George Pickens': { preference: 'man', reason: 'Contested catch ability, physical receiver' },
+  'Zay Flowers': { preference: 'zone', reason: 'Speed/slot work, finds soft spots in zone' },
+  'Jayden Reed': { preference: 'zone', reason: 'Slot specialist, works zone windows' },
+  'Brian Thomas Jr.': { preference: 'man', reason: 'Physical downfield threat, wins at catch point' },
+  'Quentin Johnston': { preference: 'zone', reason: 'Deep speed threat, exploits zone cushion' },
+  'Rashee Rice': { preference: 'man', reason: 'Physical route runner, wins in traffic' },
+  'Jakobi Meyers': { preference: 'zone', reason: 'Slot work, finds holes in zone' },
 
   // Elite Zone-Beaters (speed, find soft spots, work middle)
   'Nico Collins': { preference: 'zone', reason: 'Size/speed combo, attacks zone windows' },
