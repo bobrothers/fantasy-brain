@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
     // Calculate values for both modes
     const dynasty1 = calculateDynastyValue(player1);
     const dynasty2 = calculateDynastyValue(player2);
-    const redraft1 = calculateRedraftValue(player1);
-    const redraft2 = calculateRedraftValue(player2);
+    const redraft1 = await calculateRedraftValue(player1);
+    const redraft2 = await calculateRedraftValue(player2);
 
     // Determine verdict based on mode
     const score1 = mode === 'dynasty' ? dynasty1.overallScore : redraft1.overallScore;

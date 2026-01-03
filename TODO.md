@@ -3,10 +3,17 @@
 ## High Priority
 
 ### Live Data Sources (Replace Hardcoded)
-- [ ] Hot/cold streak from Sleeper weekly stats API (currently manual ~20 players)
+- [x] Hot/cold streak from Sleeper weekly stats API ✅ NOW LIVE
+- [x] Primetime schedule from ESPN API ✅ NOW LIVE
+- [x] Deep stats (snap trend, air yards, target premium, divisional, 2nd half) ✅ ALREADY LIVE
 - [ ] Defense rankings from FantasyPros or NFL.com API
-- [ ] Injury history from Sleeper injury reports (currently manual ~25 players)
 - [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
+
+### Trade Value Data (Assessed - requires external sources)
+- Injury history: Sleeper only has current status, NOT historical (would need PFR/ESPN injury history)
+- Draft capital: Sleeper has rookie_year but NOT draft round/pick (would need NFL.com data)
+- Contract years: Would need Spotrac/OverTheCap API (often paid)
+- Depth chart threats: Could use Sleeper's depth_chart_order (improvement opportunity)
 
 ### Multi-Player Trades
 - [ ] Support 2-for-1, 3-for-2 trades in trade analyzer
@@ -47,7 +54,13 @@
 
 ## Completed
 
-### January 2026 Session
+### January 2026 Session - Data Quality Fixes
+- [x] **Hot/cold streak now LIVE** - pulls from Sleeper weekly stats API (was hardcoded for ~20 players)
+- [x] **Primetime schedule now LIVE** - uses ESPN API dynamically (was hardcoded for Weeks 15-17)
+- [x] Deep stats verified - already using live Sleeper data for all 5 metrics
+- [x] Assessed trade value data - documented what can/cannot be automated
+
+### January 2026 Session - Earlier
 - [x] Trade analyzer with Dynasty/Redraft modes
 - [x] Dynasty metrics: Draft capital, breakout age, offensive ranking, depth chart threat
 - [x] Redraft metrics: Hot/cold streak, Vegas implied, playoff weather, positional scarcity, primetime

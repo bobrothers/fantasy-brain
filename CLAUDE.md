@@ -77,25 +77,26 @@ npm run test-providers                   # Verify API connections
 | Metric | Source | Coverage |
 |--------|--------|----------|
 | Age curves | Position-specific formulas | ✅ All positions |
-| Injury history | Manual research | ⚠️ ~25 top players |
-| Situation/contract | Manual research | ⚠️ ~15 top players |
-| Draft capital | Manual research | ⚠️ ~35 players |
+| Injury history | Manual research | ⚠️ ~25 top players (Sleeper lacks history) |
+| Situation/contract | Manual research | ⚠️ ~15 top players (no contract API) |
+| Draft capital | Manual research | ⚠️ ~35 players (Sleeper lacks round/pick) |
 | Breakout age | Manual research | ⚠️ ~20 players |
 | Offensive ranking | 2024-25 end of season | ⚠️ Static rankings |
 | Depth chart threat | Manual research | ⚠️ ~11 players |
-| Hot/cold streak | Manual research | ⚠️ ~20 players |
+| **Hot/cold streak** | **Sleeper weekly stats API** | ✅ **ALL PLAYERS - LIVE** |
 | Vegas implied | 2025 playoff estimates | ⚠️ All teams |
 | Positional scarcity | Manual tiers | ⚠️ ~11 elite players |
-| Primetime schedule | 2025 Wk 15-17 | ⚠️ Hardcoded |
+| **Primetime schedule** | **ESPN schedule API** | ✅ **ALL TEAMS - LIVE** |
 
 ### Known Issues
 1. Defense rankings are approximate, not from live source
-2. Home/away, primetime, indoor/outdoor splits use sample data
+2. Home/away, indoor/outdoor splits use sample data (primetime is now LIVE from ESPN)
 3. Revenge games only has ~7 players hardcoded
 4. Contract incentives limited to manually researched players
 5. Usage trends shows "N/A" for QBs (by design - no target/carry share)
-6. Trade value data (injury history, situation, draft capital, etc.) only covers top ~20-35 players
-7. Hot/cold streak data is manually entered, not live from API
+6. Dynasty trade metrics (injury history, situation, draft capital) only cover top ~20-35 players
+   - Sleeper API lacks: historical injuries, draft round/pick, contract data
+   - Would need external sources: Pro-Football-Reference, Spotrac, OverTheCap
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS

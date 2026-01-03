@@ -348,6 +348,88 @@ export const sleeper = {
   },
 
   /**
+   * Get hot/cold streak for a player (last 4 weeks PPG vs season average)
+   * Returns live data from Sleeper API - no hardcoding
+   */
+  async getHotColdStreak(playerName: string): Promise<{
+    last4PPG: number;
+    seasonPPG: number;
+    trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
+    weeklyPoints: Array<{ week: number; points: number }>;
+    gamesPlayed: number;
+  } | null> {
+    const player = await this.getPlayerByName(playerName);
+    if (!player) return null;
+
+    const playerId = player.id;
+    const nflState = await this.getNflState();
+    const season = parseInt(nflState.season);
+    const currentWeek = nflState.week;
+
+    // Collect all weekly points
+    const weeklyPoints: Array<{ week: number; points: number }> = [];
+
+    for (let week = 1; week <= currentWeek; week++) {
+      try {
+        const url = `${BASE_URL}/stats/nfl/regular/${season}/${week}`;
+        const cached = cache.get(url);
+        let weekStats: Record<string, Record<string, number>>;
+
+        if (cached && cached.expires > Date.now()) {
+          weekStats = cached.data as Record<string, Record<string, number>>;
+        } else {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          weekStats = await response.json();
+          cache.set(url, { data: weekStats, expires: Date.now() + 60 * 60 * 1000 });
+        }
+
+        const playerStats = weekStats[playerId];
+        if (playerStats?.pts_ppr !== undefined && playerStats.pts_ppr > 0) {
+          weeklyPoints.push({ week, points: playerStats.pts_ppr });
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (weeklyPoints.length < 4) return null;
+
+    // Calculate season average
+    const seasonTotal = weeklyPoints.reduce((sum, w) => sum + w.points, 0);
+    const seasonPPG = seasonTotal / weeklyPoints.length;
+
+    // Calculate last 4 weeks average
+    const last4Weeks = weeklyPoints.slice(-4);
+    const last4Total = last4Weeks.reduce((sum, w) => sum + w.points, 0);
+    const last4PPG = last4Total / last4Weeks.length;
+
+    // Determine trend based on percentage difference
+    const pctDiff = ((last4PPG - seasonPPG) / seasonPPG) * 100;
+    let trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
+
+    if (pctDiff >= 20) {
+      trend = 'hot';
+    } else if (pctDiff >= 8) {
+      trend = 'warm';
+    } else if (pctDiff <= -20) {
+      trend = 'ice';
+    } else if (pctDiff <= -8) {
+      trend = 'cold';
+    } else {
+      trend = 'neutral';
+    }
+
+    return {
+      last4PPG: Math.round(last4PPG * 10) / 10,
+      seasonPPG: Math.round(seasonPPG * 10) / 10,
+      trend,
+      weeklyPoints,
+      gamesPlayed: weeklyPoints.length,
+    };
+  },
+
+  /**
    * Get all injured defensive players for a team
    * Uses the full player database (includes defensive positions)
    */

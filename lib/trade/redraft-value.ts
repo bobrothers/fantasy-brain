@@ -8,10 +8,13 @@
  * DATA SOURCES:
  * - Schedule data (2025 NFL season)
  * - Defense rankings (hardcoded approximations)
+ * - Hot/Cold streak from live Sleeper weekly stats API
  * - Usage from nflfastR
  */
 
 import type { Player } from '../../types';
+import { sleeper } from '../providers/sleeper';
+import { isPrimetimeGame } from '../schedule';
 
 // 2025 remaining schedule (Weeks 15-18)
 // Defense rankings vs position (1=toughest, 32=easiest)
@@ -118,33 +121,9 @@ const SEASON_AVAILABILITY: Record<string, {
   'Tua Tagovailoa': { gamesPlayed: 10, gamesMissed: 6, currentStatus: 'questionable', recentInjury: 'Concussion' },
 };
 
-// Hot/Cold Streak - last 4 games PPG vs season average
-const HOT_COLD_STREAK: Record<string, {
-  last4PPG: number;
-  seasonPPG: number;
-  trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
-}> = {
-  'Saquon Barkley': { last4PPG: 24.5, seasonPPG: 22.1, trend: 'warm' },
-  'Derrick Henry': { last4PPG: 18.2, seasonPPG: 17.8, trend: 'neutral' },
-  'Jonathan Taylor': { last4PPG: 12.4, seasonPPG: 16.2, trend: 'cold' },
-  "Ja'Marr Chase": { last4PPG: 28.6, seasonPPG: 24.2, trend: 'hot' },
-  'CeeDee Lamb': { last4PPG: 14.8, seasonPPG: 18.2, trend: 'cold' },
-  'Tyreek Hill': { last4PPG: 12.2, seasonPPG: 16.8, trend: 'cold' },
-  'Justin Jefferson': { last4PPG: 22.4, seasonPPG: 20.1, trend: 'warm' },
-  'Amon-Ra St. Brown': { last4PPG: 21.8, seasonPPG: 19.6, trend: 'warm' },
-  'Lamar Jackson': { last4PPG: 26.2, seasonPPG: 24.8, trend: 'warm' },
-  'Josh Allen': { last4PPG: 28.4, seasonPPG: 26.2, trend: 'warm' },
-  'Patrick Mahomes': { last4PPG: 19.8, seasonPPG: 21.4, trend: 'neutral' },
-  'Joe Burrow': { last4PPG: 24.6, seasonPPG: 22.8, trend: 'warm' },
-  'Bijan Robinson': { last4PPG: 19.2, seasonPPG: 17.4, trend: 'warm' },
-  'Jahmyr Gibbs': { last4PPG: 18.4, seasonPPG: 16.8, trend: 'warm' },
-  'Travis Kelce': { last4PPG: 11.2, seasonPPG: 14.6, trend: 'cold' },
-  'De\'Von Achane': { last4PPG: 22.8, seasonPPG: 18.2, trend: 'hot' },
-  'Breece Hall': { last4PPG: 13.4, seasonPPG: 15.8, trend: 'cold' },
-  'Puka Nacua': { last4PPG: 18.6, seasonPPG: 17.2, trend: 'warm' },
-  'A.J. Brown': { last4PPG: 16.2, seasonPPG: 18.8, trend: 'neutral' },
-  'Cooper Kupp': { last4PPG: 14.8, seasonPPG: 16.4, trend: 'neutral' },
-};
+// Hot/Cold Streak - now fetched LIVE from Sleeper weekly stats API
+// See sleeper.getHotColdStreak() - compares last 4 weeks PPG vs season average
+// Thresholds: hot (≥20% above), warm (≥8% above), cold (≤-8% below), ice (≤-20% below)
 
 // Vegas Implied Points - team totals for playoff weeks (average)
 const VEGAS_IMPLIED_POINTS: Record<string, {
@@ -191,23 +170,8 @@ const COLD_WEATHER_VENUES: Set<string> = new Set([
   'NYJ', 'NYG', 'PHI', 'WAS', 'KC', 'MIN', // MIN is dome but cold travel
 ]);
 
-// Primetime games in playoff weeks (15-17)
-const PRIMETIME_PLAYOFF_GAMES: Record<string, Array<{ week: number; slot: 'SNF' | 'MNF' | 'TNF' | 'SAT' }>> = {
-  // Week 15
-  'LAC': [{ week: 15, slot: 'TNF' }],
-  'TB': [{ week: 15, slot: 'TNF' }],
-  'PIT': [{ week: 15, slot: 'SNF' }],
-  'PHI': [{ week: 15, slot: 'SNF' }],
-  'CHI': [{ week: 15, slot: 'MNF' }],
-  'MIN': [{ week: 15, slot: 'MNF' }],
-  // Week 16 (Christmas games + regular primetime)
-  'KC': [{ week: 16, slot: 'SAT' }],
-  'HOU': [{ week: 16, slot: 'SAT' }],
-  'BAL': [{ week: 16, slot: 'SAT' }],
-  // Week 17
-  'DET': [{ week: 17, slot: 'SNF' }],
-  'SF': [{ week: 17, slot: 'SNF' }],
-};
+// Primetime games - NOW LIVE from ESPN schedule API
+// See isPrimetimeGame() from schedule.ts - detects SNF/MNF/TNF/SAT dynamically
 
 // Positional scarcity - bonus for elite players at scarce positions
 const POSITIONAL_SCARCITY: Record<string, {
@@ -295,8 +259,9 @@ function getScheduleDifficulty(rank: number): 'smash' | 'good' | 'neutral' | 'to
 
 /**
  * Calculate redraft (rest-of-season) value for a player
+ * NOTE: This function is async because it fetches live hot/cold streak data from Sleeper API
  */
-export function calculateRedraftValue(player: Player): RedraftValue {
+export async function calculateRedraftValue(player: Player): Promise<RedraftValue> {
   const factors = {
     positive: [] as string[],
     negative: [] as string[],
@@ -443,27 +408,35 @@ export function calculateRedraftValue(player: Player): RedraftValue {
   const scheduleScore = Math.round(playoffScore * 0.4);
 
   // 5. Hot/Cold Streak Score (0-15 points) - recent performance vs season average
+  // NOW LIVE from Sleeper weekly stats API
   let hotColdScore = 8; // baseline
   let hotColdInfo: RedraftValue['hotColdStreak'] | undefined;
-  const streak = HOT_COLD_STREAK[player.name];
 
-  if (streak) {
-    hotColdInfo = { last4PPG: streak.last4PPG, seasonPPG: streak.seasonPPG, trend: streak.trend };
-    const ppgDiff = streak.last4PPG - streak.seasonPPG;
+  try {
+    const streak = await sleeper.getHotColdStreak(player.name);
 
-    if (streak.trend === 'hot') {
-      hotColdScore = 15;
-      factors.positive.push(`🔥 HOT: ${streak.last4PPG.toFixed(1)} PPG last 4 (${ppgDiff > 0 ? '+' : ''}${ppgDiff.toFixed(1)} vs season avg)`);
-    } else if (streak.trend === 'warm') {
-      hotColdScore = 12;
-      factors.positive.push(`Trending up: ${streak.last4PPG.toFixed(1)} PPG last 4 games`);
-    } else if (streak.trend === 'cold') {
-      hotColdScore = 4;
-      factors.negative.push(`❄️ COLD: ${streak.last4PPG.toFixed(1)} PPG last 4 (${ppgDiff.toFixed(1)} vs season avg)`);
-    } else if (streak.trend === 'ice') {
-      hotColdScore = 0;
-      factors.negative.push(`🧊 ICE COLD: ${streak.last4PPG.toFixed(1)} PPG last 4 - major concern`);
+    if (streak) {
+      hotColdInfo = { last4PPG: streak.last4PPG, seasonPPG: streak.seasonPPG, trend: streak.trend };
+      const ppgDiff = streak.last4PPG - streak.seasonPPG;
+
+      if (streak.trend === 'hot') {
+        hotColdScore = 15;
+        factors.positive.push(`🔥 HOT: ${streak.last4PPG.toFixed(1)} PPG last 4 (${ppgDiff > 0 ? '+' : ''}${ppgDiff.toFixed(1)} vs season avg)`);
+      } else if (streak.trend === 'warm') {
+        hotColdScore = 12;
+        factors.positive.push(`Trending up: ${streak.last4PPG.toFixed(1)} PPG last 4 games`);
+      } else if (streak.trend === 'cold') {
+        hotColdScore = 4;
+        factors.negative.push(`❄️ COLD: ${streak.last4PPG.toFixed(1)} PPG last 4 (${ppgDiff.toFixed(1)} vs season avg)`);
+      } else if (streak.trend === 'ice') {
+        hotColdScore = 0;
+        factors.negative.push(`🧊 ICE COLD: ${streak.last4PPG.toFixed(1)} PPG last 4 - major concern`);
+      }
+    } else {
+      factors.neutral.push('No hot/cold data (player needs 4+ games)');
     }
+  } catch {
+    factors.neutral.push('Hot/cold streak unavailable');
   }
 
   // 6. Vegas Implied Score (0-12 points) - team's scoring environment
@@ -534,18 +507,34 @@ export function calculateRedraftValue(player: Player): RedraftValue {
   }
 
   // 9. Primetime Score (0-8 points) - primetime playoff games
+  // NOW LIVE from ESPN schedule API
   let primetimeScore = 5; // baseline
   let primetimeGamesInfo: RedraftValue['primetimeGames'] | undefined;
-  const primetimeGames = team ? PRIMETIME_PLAYOFF_GAMES[team] : undefined;
 
-  if (primetimeGames && primetimeGames.length > 0) {
-    primetimeGamesInfo = primetimeGames;
-    if (primetimeGames.length >= 2) {
-      primetimeScore = 8;
-      factors.positive.push(`${primetimeGames.length} primetime playoff games - high visibility`);
-    } else {
-      primetimeScore = 7;
-      factors.neutral.push(`1 primetime game in playoffs (${primetimeGames[0].slot} Wk ${primetimeGames[0].week})`);
+  if (team) {
+    try {
+      const primetimeGames: Array<{ week: number; slot: 'SNF' | 'MNF' | 'TNF' | 'SAT' }> = [];
+
+      // Check weeks 15-17 (fantasy playoffs) for primetime games
+      for (const week of [15, 16, 17]) {
+        const primetime = await isPrimetimeGame(team, week);
+        if (primetime.isPrimetime && primetime.slot) {
+          primetimeGames.push({ week, slot: primetime.slot });
+        }
+      }
+
+      if (primetimeGames.length > 0) {
+        primetimeGamesInfo = primetimeGames;
+        if (primetimeGames.length >= 2) {
+          primetimeScore = 8;
+          factors.positive.push(`${primetimeGames.length} primetime playoff games - high visibility`);
+        } else {
+          primetimeScore = 7;
+          factors.neutral.push(`1 primetime game in playoffs (${primetimeGames[0].slot} Wk ${primetimeGames[0].week})`);
+        }
+      }
+    } catch {
+      factors.neutral.push('Primetime data unavailable');
     }
   }
 
