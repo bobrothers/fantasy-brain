@@ -46,7 +46,7 @@ function getDataDir(): string {
 }
 
 // DATA_DIR is now resolved lazily via getDataDir()
-const CURRENT_SEASON = 2025; // 2025 season data
+const CURRENT_SEASON = 2024; // nflverse only has data through 2024 season
 
 // nflverse data URLs - updated format
 // See: https://github.com/nflverse/nflverse-data/releases
