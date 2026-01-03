@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import PlayerAutocomplete from '@/components/PlayerAutocomplete';
+import LockTimer from '@/components/LockTimer';
 
 type TradeMode = 'dynasty' | 'redraft';
 
@@ -213,30 +215,26 @@ export default function TradePage() {
         {/* Input form */}
         <form onSubmit={handleAnalyze} className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="relative">
+            <div>
               <label className="block text-xs text-zinc-500 uppercase tracking-wider mb-2">
                 Player You&apos;re Getting
               </label>
-              <input
-                type="text"
+              <PlayerAutocomplete
                 value={player1}
-                onChange={(e) => setPlayer1(e.target.value)}
+                onChange={setPlayer1}
                 placeholder="e.g., Ja'Marr Chase"
-                className="w-full bg-zinc-900 border-2 border-zinc-700 rounded-none px-4 py-3 text-lg tracking-wide placeholder:text-zinc-600 focus:outline-none focus:border-emerald-400 transition-colors"
-                style={{ caretColor: '#34d399' }}
+                inputClassName="border-emerald-700/50 focus:border-emerald-400"
               />
             </div>
-            <div className="relative">
+            <div>
               <label className="block text-xs text-zinc-500 uppercase tracking-wider mb-2">
                 Player You&apos;re Giving Up
               </label>
-              <input
-                type="text"
+              <PlayerAutocomplete
                 value={player2}
-                onChange={(e) => setPlayer2(e.target.value)}
+                onChange={setPlayer2}
                 placeholder="e.g., Derrick Henry"
-                className="w-full bg-zinc-900 border-2 border-zinc-700 rounded-none px-4 py-3 text-lg tracking-wide placeholder:text-zinc-600 focus:outline-none focus:border-amber-400 transition-colors"
-                style={{ caretColor: '#fbbf24' }}
+                inputClassName="border-amber-700/50 focus:border-amber-400"
               />
             </div>
           </div>
@@ -431,6 +429,13 @@ function PlayerCard({
               <span className="text-zinc-500 text-xs">{data.player.position}</span>
               {isDynasty && dynasty.player.age && (
                 <span className="text-zinc-500 text-xs">Age {dynasty.player.age}</span>
+              )}
+              {data.player.team && (
+                <LockTimer
+                  team={data.player.team}
+                  playerName={data.player.name}
+                  compact
+                />
               )}
             </div>
           </div>

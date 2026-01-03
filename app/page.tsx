@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import PlayerAutocomplete from '@/components/PlayerAutocomplete';
+import LockTimer from '@/components/LockTimer';
 
 interface EdgeSignal {
   type: string;
@@ -157,19 +159,24 @@ export default function Home() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Search */}
         <form onSubmit={handleSearch} className="mb-8">
-          <div className="relative group">
-            <input
-              type="text"
+          <div className="relative group flex gap-2">
+            <PlayerAutocomplete
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
+              onSelect={() => {
+                // Auto-submit when player is selected from dropdown
+                setTimeout(() => {
+                  const form = document.querySelector('form');
+                  if (form) form.requestSubmit();
+                }, 50);
+              }}
               placeholder="ENTER PLAYER NAME"
-              className="w-full bg-zinc-900 border-2 border-zinc-700 rounded-none px-4 py-4 text-lg tracking-wide placeholder:text-zinc-600 focus:outline-none focus:border-amber-400 transition-colors"
-              style={{ caretColor: '#fbbf24' }}
+              className="flex-1"
             />
             <button
               type="submit"
               disabled={loading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-amber-400 text-zinc-900 px-6 py-2 text-sm font-bold tracking-wider hover:bg-amber-300 transition-colors disabled:opacity-50"
+              className="bg-amber-400 text-zinc-900 px-6 py-2 text-sm font-bold tracking-wider hover:bg-amber-300 transition-colors disabled:opacity-50"
             >
               {loading ? 'SCANNING...' : 'ANALYZE'}
             </button>
@@ -197,6 +204,11 @@ export default function Home() {
                   <div className="flex items-center gap-3 mt-2">
                     <span className="bg-zinc-800 px-2 py-1 text-xs">{result.player.team}</span>
                     <span className="text-zinc-500 text-sm">{result.player.position}</span>
+                    <LockTimer
+                      team={result.player.team}
+                      playerName={result.player.name}
+                      compact
+                    />
                   </div>
                 </div>
                 

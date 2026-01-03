@@ -20,7 +20,6 @@
 
 ## Future Ideas
 
-- [ ] Player search autocomplete in UI
 - [ ] Mobile responsive improvements
 - [ ] Supabase for caching API responses
 - [ ] Historical edge accuracy tracking
@@ -36,3 +35,6 @@
 - [x] Position-specific age curves (RB decline at 27, WR peak 26-30)
 - [x] Edge factors extracted from real signals (no fabricated data)
 - [x] Dynamic schedule from ESPN API (supports any week)
+- [x] Player search autocomplete (dropdown after 2+ chars with name, team, position)
+- [x] Lock countdown timer (shows "Locks in Xh Xm", red under 1hr, "LOCKED" after)
+- [x] Resting starters detection (flags healthy scratches in Week 15+)

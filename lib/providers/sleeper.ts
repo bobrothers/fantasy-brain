@@ -189,6 +189,60 @@ export const sleeper = {
   },
 
   /**
+   * Get a player by name (case-insensitive)
+   */
+  async getPlayerByName(name: string): Promise<Player | null> {
+    const players = await this.getAllPlayers();
+    const nameLower = name.toLowerCase().trim();
+
+    for (const player of players.values()) {
+      if (player.name.toLowerCase() === nameLower) {
+        return player;
+      }
+    }
+
+    // Try fuzzy match (contains)
+    for (const player of players.values()) {
+      if (player.name.toLowerCase().includes(nameLower) ||
+          nameLower.includes(player.name.toLowerCase())) {
+        return player;
+      }
+    }
+
+    return null;
+  },
+
+  /**
+   * Check if player is likely resting (Week 17-18 healthy scratch)
+   * Returns true if player appears to be a healthy scratch for playoffs
+   */
+  isLikelyResting(player: Player, week: number): {
+    isResting: boolean;
+    reason?: string;
+  } {
+    // Only check in late season (Week 15+)
+    if (week < 15) {
+      return { isResting: false };
+    }
+
+    const status = player.injuryStatus?.toLowerCase();
+
+    // Explicit rest indicators
+    if (status === 'dnr' || status === 'rest' || status === 'nfi-r') {
+      return { isResting: true, reason: 'DNP - Resting' };
+    }
+
+    // "Out" or "Inactive" with no real injury in late season
+    // This is heuristic - in reality we'd need practice report data
+    if ((status === 'out' || status === 'inactive') && week >= 17) {
+      // Could be resting - flag for user awareness
+      return { isResting: true, reason: 'DNP - Possible rest (Week ' + week + ')' };
+    }
+
+    return { isResting: false };
+  },
+
+  /**
    * Get league info by ID
    */
   async getLeague(leagueId: string): Promise<League> {
