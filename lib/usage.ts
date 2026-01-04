@@ -13,11 +13,11 @@
 // Feature types we track
 export type FeatureType = 'player_analysis' | 'trade_analysis' | 'team_diagnosis';
 
-// Free tier limits
+// Free tier limits (temporarily unlimited for testing)
 export const FREE_LIMITS: Record<FeatureType, number> = {
-  player_analysis: 3,
-  trade_analysis: 1,
-  team_diagnosis: 5, // Max players in diagnosis
+  player_analysis: 999,
+  trade_analysis: 999,
+  team_diagnosis: 999,
 };
 
 // Storage keys
