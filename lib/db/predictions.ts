@@ -28,11 +28,16 @@ interface EdgeAnalysis {
  * 2. Game hasn't started yet
  */
 export async function logPrediction(analysis: EdgeAnalysis): Promise<boolean> {
+  console.log('[Predictions] Starting logPrediction for:', analysis.player?.name);
+
   // Skip if Supabase isn't configured
   if (!isSupabaseConfigured()) {
     console.log('[Predictions] Supabase not configured, skipping prediction logging');
+    console.log('[Predictions] ENV check - URL:', !!process.env.NEXT_PUBLIC_SUPABASE_URL, 'ANON:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
     return false;
   }
+
+  console.log('[Predictions] Supabase is configured, proceeding...');
 
   try {
     const { player, week, signals, summary, overallImpact, recommendation, confidence } = analysis;
@@ -60,10 +65,12 @@ export async function logPrediction(analysis: EdgeAnalysis): Promise<boolean> {
     }
 
     // Skip if game has already started
+    console.log('[Predictions] Game time check:', gameTime, 'Now:', new Date(), 'Started?', gameTime && new Date() > gameTime);
     if (gameTime && new Date() > gameTime) {
       console.log(`[Predictions] Game already started for ${player.name}, skipping`);
       return false;
     }
+    console.log('[Predictions] Game has not started, proceeding to log...');
 
     // Build prediction row
     const predictionRow: PredictionRow = {
@@ -92,6 +99,7 @@ export async function logPrediction(analysis: EdgeAnalysis): Promise<boolean> {
     };
 
     // Upsert to database
+    console.log('[Predictions] About to upsert:', predictionRow.player_name, predictionRow.week, predictionRow.season);
     const supabase = getSupabaseServer();
     const { error } = await supabase
       .from('predictions')
