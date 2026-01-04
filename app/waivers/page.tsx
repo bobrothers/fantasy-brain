@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getProStatus } from '@/lib/usage';
 
 type Position = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE';
 
@@ -35,11 +36,18 @@ export default function WaiversPage() {
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState<Date | null>(null);
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Check Pro status on mount
+  useEffect(() => {
+    const status = getProStatus();
+    setIsPro(status.isPro);
   }, []);
 
   useEffect(() => {
@@ -101,15 +109,25 @@ export default function WaiversPage() {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity">
+            <Link href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity flex items-center gap-2">
               <span className="text-amber-400 font-bold">FANTASY</span>
               <span className="text-zinc-400">BRAIN</span>
+              {isPro && (
+                <span className="bg-amber-400 text-zinc-900 text-xs font-bold px-1.5 py-0.5">
+                  PRO
+                </span>
+              )}
             </Link>
             <nav className="flex items-center gap-4 text-sm">
               <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</Link>
               <Link href="/trade" className="text-zinc-400 hover:text-white transition-colors">Trade</Link>
               <Link href="/waivers" className="text-white">Waivers</Link>
               <Link href="/diagnose" className="text-zinc-400 hover:text-white transition-colors">Diagnose</Link>
+              {!isPro && (
+                <Link href="/pricing" className="text-amber-400/70 hover:text-amber-400 transition-colors font-bold">
+                  Upgrade
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-6 text-xs">

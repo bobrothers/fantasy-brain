@@ -5,6 +5,8 @@ import Link from 'next/link';
 import PlayerAutocomplete from '@/components/PlayerAutocomplete';
 import LockTimer from '@/components/LockTimer';
 import PickSelector from '@/components/PickSelector';
+import { LimitReachedOverlay } from '@/components/UpgradePrompt';
+import { canUseFeature, recordUsage, getProStatus, getRemainingUses } from '@/lib/usage';
 
 type TradeMode = 'dynasty' | 'redraft';
 
@@ -159,10 +161,22 @@ export default function TradePage() {
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState<Date | null>(null);
 
+  // Usage tracking
+  const [isPro, setIsPro] = useState(false);
+  const [showLimitReached, setShowLimitReached] = useState(false);
+  const [remaining, setRemaining] = useState(1);
+
   useEffect(() => {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Check Pro status on mount
+  useEffect(() => {
+    const status = getProStatus();
+    setIsPro(status.isPro);
+    setRemaining(getRemainingUses('trade_analysis'));
   }, []);
 
   const addPlayer1 = () => {
@@ -194,6 +208,12 @@ export default function TradePage() {
     const hasSide2 = players2.length > 0 || picks2.length > 0;
     if (!hasSide1 || !hasSide2) return;
 
+    // Check usage limit for free users
+    if (!isPro && !canUseFeature('trade_analysis')) {
+      setShowLimitReached(true);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -213,6 +233,12 @@ export default function TradePage() {
       }
       const data = await res.json();
       setResult(data);
+
+      // Record usage after successful analysis
+      if (!isPro) {
+        recordUsage('trade_analysis');
+        setRemaining(getRemainingUses('trade_analysis'));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Trade analysis failed');
       setResult(null);
@@ -331,15 +357,25 @@ export default function TradePage() {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity">
+            <Link href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity flex items-center gap-2">
               <span className="text-amber-400 font-bold">FANTASY</span>
               <span className="text-zinc-400">BRAIN</span>
+              {isPro && (
+                <span className="bg-amber-400 text-zinc-900 text-xs font-bold px-1.5 py-0.5">
+                  PRO
+                </span>
+              )}
             </Link>
             <nav className="flex items-center gap-4 text-sm">
               <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</Link>
               <Link href="/trade" className="text-white">Trade</Link>
               <Link href="/waivers" className="text-zinc-400 hover:text-white transition-colors">Waivers</Link>
               <Link href="/diagnose" className="text-zinc-400 hover:text-white transition-colors">Diagnose</Link>
+              {!isPro && (
+                <Link href="/pricing" className="text-amber-400/70 hover:text-amber-400 transition-colors font-bold">
+                  Upgrade
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-6 text-xs">
@@ -519,11 +555,24 @@ export default function TradePage() {
           </div>
           <button
             type="submit"
-            disabled={loading || (players1.length === 0 && picks1.length === 0) || (players2.length === 0 && picks2.length === 0)}
+            disabled={loading || (!isPro && remaining === 0) || (players1.length === 0 && picks1.length === 0) || (players2.length === 0 && picks2.length === 0)}
             className="w-full bg-amber-400 text-zinc-900 px-6 py-3 text-sm font-bold tracking-wider hover:bg-amber-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'ANALYZING...' : 'ANALYZE TRADE'}
           </button>
+          {/* Usage counter for free users */}
+          {!isPro && (
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <span className={`${remaining === 0 ? 'text-red-400' : 'text-zinc-500'}`}>
+                {remaining}/1 trade analysis remaining today
+              </span>
+              {remaining === 0 && (
+                <Link href="/pricing" className="text-amber-400 hover:text-amber-300 font-bold">
+                  Upgrade for unlimited
+                </Link>
+              )}
+            </div>
+          )}
         </form>
 
         {/* Error */}
@@ -688,6 +737,14 @@ export default function TradePage() {
           <div>Not financial advice. For entertainment only.</div>
         </div>
       </footer>
+
+      {/* Limit Reached Overlay */}
+      {showLimitReached && (
+        <LimitReachedOverlay
+          feature="trade_analysis"
+          onClose={() => setShowLimitReached(false)}
+        />
+      )}
 
       <style jsx>{`
         @keyframes fadeIn {

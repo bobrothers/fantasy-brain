@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import PlayerAutocomplete from '@/components/PlayerAutocomplete';
 import LockTimer from '@/components/LockTimer';
 import UsageTrendChart from '@/components/UsageTrendChart';
 import ColdWeatherPerformance from '@/components/ColdWeatherPerformance';
 import DeepStats from '@/components/DeepStats';
+import { UpgradePromptInline, LimitReachedOverlay } from '@/components/UpgradePrompt';
+import { canUseFeature, recordUsage, getProStatus, getRemainingUses } from '@/lib/usage';
 
 interface EdgeSignal {
   type: string;
@@ -80,11 +83,23 @@ export default function Home() {
   const [restingLoading, setRestingLoading] = useState(false);
   const [games, setGames] = useState<GameScore[]>([]);
 
+  // Usage tracking
+  const [isPro, setIsPro] = useState(false);
+  const [showLimitReached, setShowLimitReached] = useState(false);
+  const [remaining, setRemaining] = useState(3);
+
   // Live clock - only render on client to avoid hydration mismatch
   useEffect(() => {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Check Pro status on mount
+  useEffect(() => {
+    const status = getProStatus();
+    setIsPro(status.isPro);
+    setRemaining(getRemainingUses('player_analysis'));
   }, []);
 
   // Fetch resting players on mount
@@ -130,6 +145,12 @@ export default function Home() {
     e.preventDefault();
     if (!query.trim()) return;
 
+    // Check usage limit for free users
+    if (!isPro && !canUseFeature('player_analysis')) {
+      setShowLimitReached(true);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -138,6 +159,12 @@ export default function Home() {
       if (!res.ok) throw new Error('Player not found');
       const data = await res.json();
       setResult(data);
+
+      // Record usage after successful analysis
+      if (!isPro) {
+        recordUsage('player_analysis');
+        setRemaining(getRemainingUses('player_analysis'));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
       setResult(null);
@@ -187,15 +214,25 @@ export default function Home() {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-6">
-            <a href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity">
+            <a href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity flex items-center gap-2">
               <span className="text-amber-400 font-bold">FANTASY</span>
               <span className="text-zinc-400">BRAIN</span>
+              {isPro && (
+                <span className="bg-amber-400 text-zinc-900 text-xs font-bold px-1.5 py-0.5">
+                  PRO
+                </span>
+              )}
             </a>
             <nav className="flex items-center gap-4 text-sm">
-              <a href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</a>
+              <a href="/" className="text-white">Analysis</a>
               <a href="/trade" className="text-zinc-400 hover:text-white transition-colors">Trade</a>
               <a href="/waivers" className="text-zinc-400 hover:text-white transition-colors">Waivers</a>
               <a href="/diagnose" className="text-zinc-400 hover:text-white transition-colors">Diagnose</a>
+              {!isPro && (
+                <a href="/pricing" className="text-amber-400/70 hover:text-amber-400 transition-colors font-bold">
+                  Upgrade
+                </a>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-4 text-xs">
@@ -323,12 +360,25 @@ export default function Home() {
             />
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!isPro && remaining === 0)}
               className="bg-amber-400 text-zinc-900 px-6 py-2 text-sm font-bold tracking-wider hover:bg-amber-300 transition-colors disabled:opacity-50"
             >
               {loading ? 'SCANNING...' : 'ANALYZE'}
             </button>
           </div>
+          {/* Usage counter for free users */}
+          {!isPro && (
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <span className={`${remaining === 0 ? 'text-red-400' : remaining <= 1 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                {remaining}/3 analyses remaining today
+              </span>
+              {remaining <= 1 && (
+                <a href="/pricing" className="text-amber-400 hover:text-amber-300 font-bold">
+                  Upgrade for unlimited
+                </a>
+              )}
+            </div>
+          )}
         </form>
 
         {/* Error */}
@@ -533,6 +583,14 @@ export default function Home() {
           <div>Not financial advice. For entertainment only.</div>
         </div>
       </footer>
+
+      {/* Limit Reached Overlay */}
+      {showLimitReached && (
+        <LimitReachedOverlay
+          feature="player_analysis"
+          onClose={() => setShowLimitReached(false)}
+        />
+      )}
 
       <style jsx>{`
         @keyframes ticker {

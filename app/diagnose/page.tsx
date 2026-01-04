@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import PlayerAutocomplete from '@/components/PlayerAutocomplete';
+import { UpgradePromptInline } from '@/components/UpgradePrompt';
+import { getProStatus, FREE_LIMITS } from '@/lib/usage';
 
 type InputMode = 'upload' | 'manual';
 
@@ -177,10 +179,19 @@ export default function DiagnosePage() {
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // Pro status
+  const [isPro, setIsPro] = useState(false);
+
   useEffect(() => {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Check Pro status on mount
+  useEffect(() => {
+    const status = getProStatus();
+    setIsPro(status.isPro);
   }, []);
 
   // Handle file drop
@@ -281,11 +292,14 @@ export default function DiagnosePage() {
     setLoading(true);
     setError(null);
 
+    // For free users, limit to first 5 players
+    const playersToAnalyze = isPro ? players : players.slice(0, FREE_LIMITS.team_diagnosis);
+
     try {
       const res = await fetch('/api/diagnose', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ players }),
+        body: JSON.stringify({ players: playersToAnalyze }),
       });
 
       if (!res.ok) {
@@ -383,15 +397,25 @@ export default function DiagnosePage() {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity">
+            <Link href="/" className="text-lg tracking-tight hover:opacity-80 transition-opacity flex items-center gap-2">
               <span className="text-amber-400 font-bold">FANTASY</span>
               <span className="text-zinc-400">BRAIN</span>
+              {isPro && (
+                <span className="bg-amber-400 text-zinc-900 text-xs font-bold px-1.5 py-0.5">
+                  PRO
+                </span>
+              )}
             </Link>
             <nav className="flex items-center gap-4 text-sm">
               <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Analysis</Link>
               <Link href="/trade" className="text-zinc-400 hover:text-white transition-colors">Trade</Link>
               <Link href="/waivers" className="text-zinc-400 hover:text-white transition-colors">Waivers</Link>
               <Link href="/diagnose" className="text-white">Diagnose</Link>
+              {!isPro && (
+                <Link href="/pricing" className="text-amber-400/70 hover:text-amber-400 transition-colors font-bold">
+                  Upgrade
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-6 text-xs">
@@ -611,6 +635,15 @@ export default function DiagnosePage() {
             >
               {loading ? 'DIAGNOSING...' : `DIAGNOSE MY TEAM (${players.length} players)`}
             </button>
+            {/* Free tier limit notice */}
+            {!isPro && players.length > FREE_LIMITS.team_diagnosis && (
+              <div className="mt-2 text-xs text-amber-400">
+                Free tier: Only first {FREE_LIMITS.team_diagnosis} players will be analyzed.{' '}
+                <Link href="/pricing" className="underline hover:text-amber-300">
+                  Upgrade for full roster
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
@@ -677,6 +710,15 @@ export default function DiagnosePage() {
             >
               {loading ? 'DIAGNOSING...' : 'DIAGNOSE MY TEAM'}
             </button>
+            {/* Free tier limit notice */}
+            {!isPro && players.length > FREE_LIMITS.team_diagnosis && (
+              <div className="mt-2 text-xs text-amber-400">
+                Free tier: Only first {FREE_LIMITS.team_diagnosis} players will be analyzed.{' '}
+                <Link href="/pricing" className="underline hover:text-amber-300">
+                  Upgrade for full roster
+                </Link>
+              </div>
+            )}
           </form>
         )}
 
