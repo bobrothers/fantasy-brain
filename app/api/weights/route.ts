@@ -5,6 +5,9 @@
  */
 
 import { NextResponse } from 'next/server';
+
+// Force dynamic - fetches from database
+export const dynamic = 'force-dynamic';
 import { getAllWeights, getWeightHistory } from '@/lib/db/learning';
 
 export async function GET() {
