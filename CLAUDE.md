@@ -10,60 +10,45 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 - **CLI tool** for player analysis: `npm run analyze "Player Name"`
 - **16 edge detectors** integrated into single analysis
 - **5 data providers** connected (Sleeper, Weather, ESPN, Odds API, nflfastR)
+- **Prediction Accuracy Tracking** with Supabase + learning algorithm
+- **4 AI Agents** for trade negotiation, lineup optimization, draft assistance, league analysis
+- **Cost Tracking Dashboard** at /admin/costs
 - **Trade Analyzer** at /trade - Dynasty and Redraft modes with multi-player support
 - **Team Diagnosis** at /diagnose - Dynasty roster evaluation
 - **Waiver Wire Scanner** at /waivers - Real trending data from Sleeper API
 - **Live Scores Ticker** - ESPN scoreboard with seamless animation
-- **Dynamic schedule** from ESPN API (supports any week)
 
-### Features
+### AI Agents (NEW)
 
-#### Player Analysis (/)
-- 16 edge signals analyzed per player
-- Usage trend chart (last 6 weeks from Sleeper API)
-- Cold weather performance tracking
-- Deep stats: Snap trend, Air yards share, Target premium, Divisional performance, Second half surge
-- Lock countdown timer (shows "Locks in Xh Xm", red under 1hr)
-- Resting/Suspended player banner (suspended shows in red)
-- Edge Impact tooltip - hover to see score scale explanation
-- Live scores ticker - shows game scores or upcoming matchups (BAL @ PIT SNF)
+| Agent | Endpoint | Purpose |
+|-------|----------|---------|
+| League Context | `POST /api/agent/league-context` | Analyzes Sleeper league, profiles owner trading styles |
+| Trade Negotiator | `POST /api/agent/trade-negotiator` | Generates 3 trade tiers (lowball/fair/overpay) |
+| Lineup Optimizer | `POST /api/agent/lineup-optimizer` | Creates optimal lineup based on edge scores |
+| Draft Assistant | `POST /api/agent/draft-assistant` | Tracks picks, detects runs, recommends picks |
 
-#### Trade Analyzer (/trade)
-- **Dynasty mode**:
-  - Core: Age curves by position, durability/injury analysis, situation stability
-  - **Durability Analysis**: Games played %, injury type tracking, recurring issue detection
-    - Ratings: IRON MAN, DURABLE, MODERATE, INJURY PRONE, GLASS
-    - 3-season availability tracking with recency weighting
-    - Age + injury combo risk (flags aging players with soft tissue history)
-    - Major injury recovery status tracking
-  - Draft capital (1st rounders get bonus), Breakout age (early = longer prime)
-  - Offensive ranking (elite offenses boost value), Depth chart threat
-  - **Contract Analysis**: Status, years remaining, dead cap, rookie deal value
-  - **Sell Window Alerts**: SELL NOW, SELL SOON, BUY LOW, BUY NOW based on age/injury
-  - **Draft pick values**: Add picks to trades (2026-2028, rounds 1-4)
-  - **Consolidation warnings**: "3 nickels ≠ 1 dollar" trade detection
-- **Redraft mode**:
-  - Core: Playoff schedule (Wks 15-17), availability, usage trends
-  - Hot/cold streak - LIVE from Sleeper weekly stats (last 4 games PPG)
-  - Vegas implied points (team scoring environment)
-  - Playoff weather (cold weather games), Positional scarcity (TE premium)
-  - Primetime schedule - LIVE from ESPN API (SNF/MNF/TNF detection)
-- Verdict system: ACCEPT / REJECT / SLIGHT EDGE / TOSS-UP
-- "Gun to head" recommendation for close calls
+### Prediction Accuracy System
 
-#### Team Diagnosis (/diagnose)
-- Enter roster players for dynasty classification
-- Classifications: CONTENDER, REBUILD, STUCK IN THE MIDDLE
-- Position group strength ratings
-- Key metrics: elite assets, young assets, aging assets
-- Strategic recommendations with moves, targets, sells, holds
-- Championship window outlook
+- **Automatic logging** of predictions before games
+- **Outcome tracking** from Sleeper API after games
+- **Learning algorithm** adjusts edge weights based on accuracy
+- **Self-improvement agent** analyzes patterns and proposes code changes
+- **Vercel cron jobs** run Tuesday mornings
 
-#### Waiver Wire Scanner (/waivers)
-- Real trending adds from Sleeper API
-- Edge scores from actual edge detector analysis
-- Position filters (QB/RB/WR/TE/ALL)
-- Hidden gems: High adds + positive edge score
+### MCP Servers Configured
+
+| Server | Purpose |
+|--------|---------|
+| Supabase | Direct database queries and management |
+| GitHub | Create issues, PRs, manage repository |
+
+### Sub-Agents Available
+
+Invoke with `@agent-name`:
+- `@code-reviewer` - Reviews code quality before commits
+- `@security-auditor` - Scans for vulnerabilities
+- `@performance-optimizer` - Finds slow queries & bottlenecks
+- `@data-analyst` - Analyzes prediction accuracy patterns
 
 ### How to Run
 ```bash
@@ -95,40 +80,57 @@ npm run test-providers                   # Verify API connections
 | indoor-outdoor-splits | Hardcoded | ⚠️ Sample data |
 | coverage-matchup | Sharp Football | ✅ Live tendencies, ~50 players tagged |
 
-#### Dynasty Trade Value Metrics
-| Metric | Source | Coverage |
-|--------|--------|----------|
-| Age curves | Position formulas | ✅ All positions |
-| **Durability analysis** | **Injury history data** | ✅ **~50 players** |
-| Hot/cold streak | Sleeper API | ✅ All players |
-| Primetime schedule | ESPN API | ✅ All teams |
-| Contract data | Manual | ⚠️ ~40 players |
-| Situation analysis | Manual | ⚠️ ~30 players |
-| QB stability | Manual | ⚠️ ~25 teams |
-| Target competition | Manual | ⚠️ ~40 players |
-| Draft capital | Manual | ⚠️ ~35 players |
-| Breakout age | Manual | ⚠️ ~20 players |
-| Offensive ranking | Static 2024-25 | ⚠️ All teams |
-| Depth chart threat | Manual | ⚠️ ~11 players |
-
 ### Known Issues
 1. Home/away, indoor/outdoor splits use sample data (need historical game logs)
 2. Revenge games only has ~7 players hardcoded
 3. Dynasty trade metrics limited coverage - need Pro-Football-Reference, Spotrac for more
 4. Usage trends shows "N/A" for QBs (by design - no target/carry share)
 5. Defense rankings calculation takes ~5-10 seconds on first load (cached 1 hour)
-6. Injury data needs expansion beyond current ~50 players
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
+- **Backend**: Vercel Serverless Functions
+- **Database**: Supabase (PostgreSQL)
+- **AI**: Claude API (Sonnet 4 for agents)
 - **Hosting**: Vercel
 - **CLI**: tsx for TypeScript execution
 - **Data Sources**:
-  - Sleeper API (players, injuries, weekly stats, trending)
+  - Sleeper API (players, injuries, weekly stats, trending, leagues)
   - Open-Meteo (weather forecasts)
   - The Odds API (betting lines)
   - ESPN API (OL injuries, schedule, live scores)
   - nflfastR CSV (historical usage stats)
+
+## Database Tables
+
+### Core Tables
+- `predictions` - Pre-game predictions with edge signals
+- `outcomes` - Actual fantasy points after games
+- `edge_accuracy` - Aggregated accuracy by edge type
+- `edge_weights` - Configurable weights for each edge detector
+
+### Learning System
+- `prediction_analysis` - Deep analysis of each prediction
+- `detected_patterns` - AI-discovered patterns in misses
+- `improvement_proposals` - Proposed code/weight changes
+- `applied_improvements` - History of applied changes
+- `agent_decisions` - Audit log of agent decisions
+- `weight_history` - Rollback history for edge weights
+
+### Agent Tables
+- `league_profiles` - Sleeper league settings and tendencies
+- `owner_profiles` - Owner trading styles and roster needs
+- `trade_suggestions` - Generated trade offer tiers
+- `lineup_recommendations` - Optimal lineup suggestions
+- `draft_sessions` - Draft state tracking
+- `draft_picks` - Individual picks with ADP comparison
+- `draft_recommendations` - AI pick suggestions
+
+### Monitoring
+- `api_costs` - Claude API token usage and costs
+- `news_monitor_state` - News monitoring run logs
+- `weekly_schedule` - NFL game schedule
+- `alerts` - Player news/injury alerts
 
 ## Code Guidelines
 
@@ -142,46 +144,44 @@ npm run test-providers                   # Verify API connections
 - Include error handling in all API calls
 - Keep edge detector modules independent
 - Each module returns EdgeSignal[] with impact, magnitude, confidence
+- Use `createTrackedClient()` for Claude API calls to log costs
 
 ### Project Structure
 ```
 /app
-  /api/analyze/       # Player analysis API
-  /api/trade/         # Trade analyzer API
-  /api/waivers/       # Waiver scanner API
-  /api/scores/        # Live ESPN scores API
-  /api/deep-stats/    # Deep stats API
-  /api/usage-trend/   # Usage trend chart API
-  /api/resting/       # Resting/suspended players API
-  /trade/             # Trade analyzer UI
-  /waivers/           # Waiver scanner UI
-  /diagnose/          # Team diagnosis UI
-  page.tsx            # Main UI (player analysis)
-/components
-  PlayerAutocomplete.tsx
-  LockTimer.tsx
-  UsageTrendChart.tsx
-  ColdWeatherPerformance.tsx
-  DeepStats.tsx
+  /api/agent/           # AI agent endpoints
+  /api/analyze/         # Player analysis API
+  /api/accuracy/        # Accuracy + learning pipeline
+  /api/trade/           # Trade analyzer API
+  /admin/costs/         # Cost dashboard
+  page.tsx              # Main UI
 /lib
-  /providers/         # sleeper.ts, espn.ts, weather.ts, odds.ts, nflfastr.ts
-  /edge/              # 16 edge detector modules
-  /trade/             # dynasty-value.ts, redraft-value.ts, injury-analysis.ts
-  /data/              # contracts.ts, situations.ts, injuries.ts, resting-players.ts
-  schedule.ts         # Dynamic schedule service (ESPN API)
-  edge-detector.ts    # Main orchestrator
-/types/               # TypeScript interfaces
+  /agent/               # AI agent logic
+  /db/                  # Supabase clients and queries
+  /providers/           # External API clients
+  /edge/                # 16 edge detector modules
+  /trade/               # Trade value calculations
+  /news/                # News monitoring
+/.claude/agents/        # Custom sub-agents
+/db/migrations/         # SQL migrations
 ```
 
-## API Keys
+## Environment Variables
 ```
-ODDS_API_KEY=your_key_here   # Required for betting signals
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# APIs
+ODDS_API_KEY=xxx
+ANTHROPIC_API_KEY=xxx
+
+# Vercel Cron
+CRON_SECRET=xxx
 ```
-- Weather API: free, no key needed
-- Sleeper API: free, no key needed
-- ESPN API: free, no key needed
 
 ## Deployment
 - **GitHub**: https://github.com/bobrothers/fantasy-brain
 - **Vercel**: https://fantasy-brain.vercel.app
-- Environment variable `ODDS_API_KEY` must be set in Vercel dashboard
+- All environment variables must be set in Vercel dashboard
