@@ -7,10 +7,6 @@
     {
       "path": "/api/accuracy/calculate",
       "schedule": "0 11 * * 2"
-    },
-    {
-      "path": "/api/agent/improve",
-      "schedule": "0 12 * * 2"
     }
   ]
 }

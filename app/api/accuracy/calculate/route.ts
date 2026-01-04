@@ -1,11 +1,12 @@
 /**
- * Accuracy Calculation + Learning + Analysis API
+ * Accuracy Calculation + Learning + Analysis + AI Agent API
  *
  * Full weekly pipeline:
  * 1. Calculate prediction accuracy
  * 2. Run learning algorithm to adjust weights
  * 3. Deep analysis of predictions (why did we miss?)
  * 4. Pattern detection across all predictions
+ * 5. AI improvement agent (analyzes patterns, suggests/applies improvements)
  *
  * Protected by CRON_SECRET for Vercel Cron jobs.
  * Vercel Cron: Runs Tuesday 11am UTC (after outcomes are fetched)
@@ -14,11 +15,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Allow 60s for full pipeline
+export const maxDuration = 120; // Allow 120s for full pipeline including AI agent
 
 import { calculateAccuracy } from '@/lib/db/accuracy';
 import { learnFromAccuracy } from '@/lib/db/learning';
 import { analyzeWeekPredictions } from '@/lib/db/analysis';
+import { runImprovementAgent } from '@/lib/agent/improve';
 import { espn } from '@/lib/providers/espn';
 
 export async function GET(request: NextRequest) {
@@ -70,6 +72,10 @@ export async function GET(request: NextRequest) {
     console.log(`[Accuracy] Running deep analysis for season ${season}, week ${week}`);
     const analysisResult = await analyzeWeekPredictions(season, week);
 
+    // Step 4: Run AI improvement agent
+    console.log(`[Accuracy] Running AI improvement agent for season ${season}`);
+    const agentResult = await runImprovementAgent(season);
+
     return NextResponse.json({
       success: true,
       season,
@@ -86,6 +92,13 @@ export async function GET(request: NextRequest) {
       analysis: {
         predictionsAnalyzed: analysisResult.analyzed,
         patternsDetected: analysisResult.patterns,
+      },
+      agent: {
+        patternsAnalyzed: agentResult.patternsAnalyzed,
+        badMissesAnalyzed: agentResult.badMissesAnalyzed,
+        recommendationsGenerated: agentResult.recommendations.length,
+        autoApplied: agentResult.autoApplied,
+        proposalsCreated: agentResult.proposalsCreated,
       },
       updatedAt: report.updatedAt,
     });
