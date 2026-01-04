@@ -1,19 +1,24 @@
 /**
- * Accuracy Calculation + Learning API
+ * Accuracy Calculation + Learning + Analysis API
  *
- * Calculates prediction accuracy after outcomes are fetched,
- * then runs the learning algorithm to adjust edge weights.
+ * Full weekly pipeline:
+ * 1. Calculate prediction accuracy
+ * 2. Run learning algorithm to adjust weights
+ * 3. Deep analysis of predictions (why did we miss?)
+ * 4. Pattern detection across all predictions
+ *
  * Protected by CRON_SECRET for Vercel Cron jobs.
- *
  * Vercel Cron: Runs Tuesday 11am UTC (after outcomes are fetched)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Allow 60s for full pipeline
 
 import { calculateAccuracy } from '@/lib/db/accuracy';
 import { learnFromAccuracy } from '@/lib/db/learning';
+import { analyzeWeekPredictions } from '@/lib/db/analysis';
 import { espn } from '@/lib/providers/espn';
 
 export async function GET(request: NextRequest) {
@@ -61,9 +66,14 @@ export async function GET(request: NextRequest) {
     console.log(`[Accuracy] Running learning for season ${season}, week ${week}`);
     const learningResult = await learnFromAccuracy(season, week);
 
+    // Step 3: Deep analysis of predictions
+    console.log(`[Accuracy] Running deep analysis for season ${season}, week ${week}`);
+    const analysisResult = await analyzeWeekPredictions(season, week);
+
     return NextResponse.json({
       success: true,
       season,
+      week,
       totalPredictions: report.totalPredictions,
       overallHitRate: report.overallHitRate,
       topEdges: Object.entries(report.byEdgeType)
@@ -72,6 +82,10 @@ export async function GET(request: NextRequest) {
       learning: {
         weightsUpdated: learningResult.updated,
         updates: learningResult.updates.slice(0, 5),
+      },
+      analysis: {
+        predictionsAnalyzed: analysisResult.analyzed,
+        patternsDetected: analysisResult.patterns,
       },
       updatedAt: report.updatedAt,
     });
