@@ -7,26 +7,33 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// Read env vars dynamically (not at module load time)
+function getEnvVars() {
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  };
+}
 
 // Validate config
 export function isSupabaseConfigured(): boolean {
-  return !!(supabaseUrl && supabaseAnonKey);
+  const { url, anonKey } = getEnvVars();
+  return !!(url && anonKey);
 }
 
 // Browser/public client (read-only for most operations)
 let browserClient: SupabaseClient | null = null;
 
 export function getSupabaseBrowser(): SupabaseClient {
-  if (!isSupabaseConfigured()) {
+  const { url, anonKey } = getEnvVars();
+
+  if (!url || !anonKey) {
     throw new Error('Supabase not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
 
   if (!browserClient) {
-    browserClient = createClient(supabaseUrl, supabaseAnonKey);
+    browserClient = createClient(url, anonKey);
   }
   return browserClient;
 }
@@ -35,12 +42,14 @@ export function getSupabaseBrowser(): SupabaseClient {
 let serverClient: SupabaseClient | null = null;
 
 export function getSupabaseServer(): SupabaseClient {
-  if (!supabaseUrl || !supabaseServiceKey) {
+  const { url, serviceKey } = getEnvVars();
+
+  if (!url || !serviceKey) {
     throw new Error('Supabase server not configured. Set SUPABASE_SERVICE_ROLE_KEY');
   }
 
   if (!serverClient) {
-    serverClient = createClient(supabaseUrl, supabaseServiceKey, {
+    serverClient = createClient(url, serviceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
