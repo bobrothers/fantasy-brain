@@ -43,7 +43,8 @@
       "Bash(gunzip:*)",
       "Bash(for year in 2022 2023 2024)",
       "Bash(do)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(xargs cat:*)"
     ]
   }
 }

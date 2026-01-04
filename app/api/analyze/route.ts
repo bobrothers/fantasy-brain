@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import edgeDetector from '@/lib/edge-detector';
 import { isConfirmedResting } from '@/lib/data/resting-players';
+import { logPrediction } from '@/lib/db/predictions';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -16,6 +17,11 @@ export async function GET(request: NextRequest) {
     if (!result) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 });
     }
+
+    // Log prediction for accuracy tracking (async, don't await)
+    logPrediction(result).catch(err => {
+      console.error('[Analyze] Prediction logging failed:', err);
+    });
 
     // Helper to extract signals for a given type prefix
     const getSignalsForType = (typePrefix: string) =>

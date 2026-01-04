@@ -2,6 +2,16 @@
 
 ## High Priority
 
+### Supabase Setup (for Prediction Accuracy Tracking)
+- [ ] Create Supabase project at https://supabase.com (free tier works)
+- [ ] Run SQL migration from `/db/migrations/001_create_predictions.sql` in SQL Editor
+- [ ] Add environment variables to Vercel:
+  - `NEXT_PUBLIC_SUPABASE_URL` (from Project Settings → API)
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (anon public key)
+  - `SUPABASE_SERVICE_ROLE_KEY` (service_role key)
+  - `CRON_SECRET` (generate random string for Vercel cron auth)
+- [ ] Verify cron jobs work (Vercel Pro plan required for crons)
+
 ### Stripe Setup (for Paywall)
 - [ ] Create products in Stripe Dashboard:
   - Pro Monthly: $7.99/month
@@ -48,8 +58,6 @@
 
 ## Low Priority / Future Ideas
 
-- [ ] Supabase for caching API responses
-- [ ] Historical edge accuracy tracking (did our edges predict outcomes?)
 - [ ] Playoff bracket simulator
 - [ ] Draft assistant mode (dynasty rookie drafts)
 - [ ] League-specific scoring (PPR vs Standard vs Half-PPR adjustments)
@@ -60,6 +68,14 @@
 ## Completed (January 2026)
 
 ### Session 4 (Jan 3)
+- [x] **Prediction Accuracy Tracking** - Supabase + Vercel Cron system
+  - Prediction logging when players analyzed (before games)
+  - Outcome tracking from Sleeper API (after games)
+  - Accuracy calculation by recommendation, position, confidence, edge type
+  - Public `/accuracy` page with hit rates and leaderboards
+  - Vercel cron: outcomes at Tuesday 10am UTC, accuracy at 11am UTC
+  - Hit criteria: SMASH=top 5, START=top 12, FLEX=top 24
+  - Biggest hits/misses examples
 - [x] **Paywall/Freemium System** - Stripe integration for Pro subscriptions
   - Usage tracking with localStorage (resets daily)
   - Free tier: 3 analyses/day, 1 trade/day, 5 players in diagnosis
