@@ -25,6 +25,7 @@ import { detectDivisionRivalryEdge } from './edge/division-rivalry';
 import { detectRestAdvantageEdge } from './edge/rest-advantage';
 import { detectIndoorOutdoorEdge } from './edge/indoor-outdoor-splits';
 import { detectCoverageMatchupEdge } from './edge/coverage-matchup';
+import { getEdgeWeight } from './db/learning';
 
 const SYMBOLS = {
   positive: '✓',
@@ -236,10 +237,14 @@ export async function analyzePlayer(
   allSignals.push(...coverageResult.signals);
   summaries.coverageMatchup = coverageResult.summary;
 
-  const overallImpact = allSignals.reduce((sum, signal) => {
-    const weight = signal.confidence / 100;
-    return sum + signal.magnitude * weight;
-  }, 0);
+  // Calculate overall impact using learned weights
+  let overallImpact = 0;
+  for (const signal of allSignals) {
+    const confidenceWeight = signal.confidence / 100;
+    // Get learned weight for this edge type (defaults to 1.0 if not found)
+    const learnedWeight = await getEdgeWeight(signal.type, player.position);
+    overallImpact += signal.magnitude * confidenceWeight * learnedWeight;
+  }
 
   const recommendation = generateRecommendation(
     player,

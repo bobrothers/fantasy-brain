@@ -9,6 +9,17 @@ interface AccuracyStats {
   hitRate: number;
 }
 
+interface EdgeWeight {
+  edgeType: string;
+  weight: number;
+  hitRate: number;
+  predictions: number;
+  qbWeight: number;
+  rbWeight: number;
+  wrWeight: number;
+  teWeight: number;
+}
+
 interface AccuracyReport {
   season: number;
   totalPredictions: number;
@@ -42,9 +53,11 @@ interface AccuracyReport {
 
 export default function AccuracyPage() {
   const [report, setReport] = useState<AccuracyReport | null>(null);
+  const [weights, setWeights] = useState<EdgeWeight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState<Date | null>(null);
+  const [showWeights, setShowWeights] = useState(false);
 
   useEffect(() => {
     setTime(new Date());
@@ -53,19 +66,29 @@ export default function AccuracyPage() {
   }, []);
 
   useEffect(() => {
-    const fetchAccuracy = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/accuracy');
-        if (!res.ok) throw new Error('Failed to fetch accuracy data');
-        const data = await res.json();
-        setReport(data);
+        // Fetch accuracy and weights in parallel
+        const [accuracyRes, weightsRes] = await Promise.all([
+          fetch('/api/accuracy'),
+          fetch('/api/weights'),
+        ]);
+
+        if (!accuracyRes.ok) throw new Error('Failed to fetch accuracy data');
+        const accuracyData = await accuracyRes.json();
+        setReport(accuracyData);
+
+        if (weightsRes.ok) {
+          const weightsData = await weightsRes.json();
+          setWeights(weightsData.weights || []);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load accuracy data');
       } finally {
         setLoading(false);
       }
     };
-    fetchAccuracy();
+    fetchData();
   }, []);
 
   const getHitRateColor = (rate: number) => {
@@ -80,6 +103,14 @@ export default function AccuracyPage() {
     if (score >= 1) return 'text-lime-400';
     if (score <= -3) return 'text-red-400';
     if (score <= -1) return 'text-orange-400';
+    return 'text-zinc-400';
+  };
+
+  const getWeightColor = (weight: number) => {
+    if (weight >= 1.5) return 'text-emerald-400';
+    if (weight >= 1.2) return 'text-lime-400';
+    if (weight <= 0.5) return 'text-red-400';
+    if (weight <= 0.8) return 'text-orange-400';
     return 'text-zinc-400';
   };
 
@@ -332,6 +363,112 @@ export default function AccuracyPage() {
                 </table>
               </div>
             </div>
+
+            {/* Learned Weights */}
+            {weights.length > 0 && (
+              <div className="bg-zinc-900 border border-amber-800/50 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xs text-amber-500 uppercase tracking-wider flex items-center gap-2">
+                    <span className="text-amber-400">&#x2699;</span> Learned Edge Weights
+                  </h2>
+                  <button
+                    onClick={() => setShowWeights(!showWeights)}
+                    className="text-xs text-amber-400 hover:text-amber-300"
+                  >
+                    {showWeights ? 'Hide Details' : 'Show Details'}
+                  </button>
+                </div>
+
+                <p className="text-xs text-zinc-500 mb-4">
+                  The system learns which edge signals are most predictive and adjusts their weights automatically.
+                  Higher weights = more influence on predictions.
+                </p>
+
+                {/* Summary: Top boosted and reduced edges */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <div className="text-xs text-emerald-500 mb-2">Top Boosted Edges</div>
+                    {weights
+                      .filter((w) => w.weight > 1.1)
+                      .slice(0, 3)
+                      .map((w) => (
+                        <div key={w.edgeType} className="flex justify-between text-sm mb-1">
+                          <span className="text-zinc-400">
+                            {w.edgeType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </span>
+                          <span className={getWeightColor(w.weight)}>{w.weight.toFixed(2)}x</span>
+                        </div>
+                      ))}
+                    {weights.filter((w) => w.weight > 1.1).length === 0 && (
+                      <span className="text-zinc-600 text-xs">No boosted edges yet</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-red-500 mb-2">Reduced Edges</div>
+                    {weights
+                      .filter((w) => w.weight < 0.9 && w.weight > 0)
+                      .slice(0, 3)
+                      .map((w) => (
+                        <div key={w.edgeType} className="flex justify-between text-sm mb-1">
+                          <span className="text-zinc-400">
+                            {w.edgeType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </span>
+                          <span className={getWeightColor(w.weight)}>{w.weight.toFixed(2)}x</span>
+                        </div>
+                      ))}
+                    {weights.filter((w) => w.weight < 0.9 && w.weight > 0).length === 0 && (
+                      <span className="text-zinc-600 text-xs">No reduced edges yet</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Full table when expanded */}
+                {showWeights && (
+                  <div className="overflow-x-auto mt-4 border-t border-zinc-800 pt-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-zinc-500 border-b border-zinc-800">
+                          <th className="pb-2">Edge Type</th>
+                          <th className="pb-2 text-right">Weight</th>
+                          <th className="pb-2 text-right">Hit Rate</th>
+                          <th className="pb-2 text-right">QB</th>
+                          <th className="pb-2 text-right">RB</th>
+                          <th className="pb-2 text-right">WR</th>
+                          <th className="pb-2 text-right">TE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weights.map((w) => (
+                          <tr key={w.edgeType} className="border-b border-zinc-800/50">
+                            <td className="py-2 text-zinc-300">
+                              {w.edgeType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                            </td>
+                            <td className={`py-2 text-right font-bold ${getWeightColor(w.weight)}`}>
+                              {w.weight.toFixed(2)}x
+                            </td>
+                            <td className={`py-2 text-right ${getHitRateColor(w.hitRate)}`}>
+                              {w.hitRate > 0 ? `${w.hitRate.toFixed(1)}%` : '-'}
+                            </td>
+                            <td className={`py-2 text-right ${getWeightColor(w.qbWeight)}`}>
+                              {w.qbWeight !== 1 ? `${w.qbWeight.toFixed(2)}` : '-'}
+                            </td>
+                            <td className={`py-2 text-right ${getWeightColor(w.rbWeight)}`}>
+                              {w.rbWeight !== 1 ? `${w.rbWeight.toFixed(2)}` : '-'}
+                            </td>
+                            <td className={`py-2 text-right ${getWeightColor(w.wrWeight)}`}>
+                              {w.wrWeight !== 1 ? `${w.wrWeight.toFixed(2)}` : '-'}
+                            </td>
+                            <td className={`py-2 text-right ${getWeightColor(w.teWeight)}`}>
+                              {w.teWeight !== 1 ? `${w.teWeight.toFixed(2)}` : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Biggest Hits & Misses */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
