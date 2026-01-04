@@ -2,6 +2,19 @@
 
 ## High Priority
 
+### Stripe Setup (for Paywall)
+- [ ] Create products in Stripe Dashboard:
+  - Pro Monthly: $7.99/month
+  - Pro Yearly: $79.99/year
+- [ ] Add environment variables to Vercel:
+  - `STRIPE_SECRET_KEY`
+  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+  - `NEXT_PUBLIC_STRIPE_PRICE_MONTHLY`
+  - `NEXT_PUBLIC_STRIPE_PRICE_YEARLY`
+  - `STRIPE_WEBHOOK_SECRET`
+- [ ] Configure Stripe webhook endpoint → `/api/stripe/webhook`
+- [ ] Test checkout flow end-to-end
+
 ### Roster Integration
 - [ ] Connect to Sleeper league by league ID
 - [ ] Import user's roster
@@ -45,6 +58,20 @@
 ---
 
 ## Completed (January 2026)
+
+### Session 4 (Jan 3)
+- [x] **Paywall/Freemium System** - Stripe integration for Pro subscriptions
+  - Usage tracking with localStorage (resets daily)
+  - Free tier: 3 analyses/day, 1 trade/day, 5 players in diagnosis
+  - Pro tier: $7.99/mo or $79.99/yr for unlimited
+  - `/pricing` page with tier comparison
+  - `/pro/success` page for subscription activation
+  - Pro badge in header for subscribers
+  - Usage counters and upgrade prompts on all pages
+- [x] **Roster Screenshot Upload** - Claude Vision for roster parsing
+  - Drag-and-drop image upload on /diagnose
+  - Fuzzy player name matching with 100+ aliases
+  - Auto-populate roster from screenshot
 
 ### Session 3 (Jan 3)
 - [x] **Durability Analysis** - Comprehensive injury tracking for dynasty
