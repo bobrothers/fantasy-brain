@@ -7,6 +7,9 @@
  * Vercel Cron: Runs Tuesday 12pm UTC (after accuracy calculation at 11am)
  */
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { learnFromAccuracy, getAllWeights } from '@/lib/db/learning';
 import { espn } from '@/lib/providers/espn';
