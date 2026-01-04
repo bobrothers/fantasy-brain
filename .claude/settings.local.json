@@ -51,7 +51,11 @@
       "Bash(xargs -I {} gh api repos/bobrothers/fantasy-brain/deployments/{}/statuses --jq \".[0] | \"\"\\\\\\(.state\\) - \\\\\\(.description\\)\"\"\")",
       "Bash(NODE_ENV=production npm run build:*)",
       "Bash(source:*)",
-      "Bash(printf:*)"
+      "Bash(printf:*)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(claude mcp remove:*)",
+      "WebFetch(domain:supabase.com)"
     ]
   }
 }

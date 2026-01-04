@@ -11,12 +11,13 @@
  * - Auto-rollback if accuracy drops 10%+
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseServer, isSupabaseConfigured } from '../db/supabase';
 import { getPatternsForAnalysis, getBadMisses } from '../db/analysis';
 import { getAllWeights } from '../db/learning';
+import { createTrackedClient } from '../db/costs';
 
-const anthropic = new Anthropic();
+// Create tracked client for cost logging
+const trackedClient = createTrackedClient('/api/agent/improve');
 
 // Configuration
 const CONFIG = {
@@ -400,7 +401,7 @@ Output your recommendations as a JSON array of objects with this structure:
 Only output the JSON array, no other text. If no recommendations, output empty array [].`;
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await trackedClient.createMessage({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       system: systemPrompt,

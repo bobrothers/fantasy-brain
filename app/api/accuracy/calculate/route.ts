@@ -1,5 +1,5 @@
 /**
- * Accuracy Calculation + Learning + Analysis + AI Agent API
+ * Accuracy Calculation + Learning + Analysis + AI Agent + News API
  *
  * Full weekly pipeline:
  * 1. Calculate prediction accuracy
@@ -7,6 +7,8 @@
  * 3. Deep analysis of predictions (why did we miss?)
  * 4. Pattern detection across all predictions
  * 5. AI improvement agent (analyzes patterns, suggests/applies improvements)
+ * 6. Refresh NFL schedule for upcoming week
+ * 7. Run news monitor to check for player updates
  *
  * Protected by CRON_SECRET for Vercel Cron jobs.
  * Vercel Cron: Runs Tuesday 11am UTC (after outcomes are fetched)
@@ -21,6 +23,8 @@ import { calculateAccuracy } from '@/lib/db/accuracy';
 import { learnFromAccuracy } from '@/lib/db/learning';
 import { analyzeWeekPredictions } from '@/lib/db/analysis';
 import { runImprovementAgent } from '@/lib/agent/improve';
+import { fetchAndStoreSchedule } from '@/lib/news/schedule';
+import { runNewsMonitor, deactivateOldAlerts } from '@/lib/news/monitor';
 import { espn } from '@/lib/providers/espn';
 
 export async function GET(request: NextRequest) {
@@ -76,6 +80,21 @@ export async function GET(request: NextRequest) {
     console.log(`[Accuracy] Running AI improvement agent for season ${season}`);
     const agentResult = await runImprovementAgent(season);
 
+    // Step 5: Refresh NFL schedule for next week
+    console.log(`[Accuracy] Refreshing schedule for week ${currentState.week}`);
+    const gamesStored = await fetchAndStoreSchedule(season, currentState.week);
+
+    // Step 6: Run news monitor
+    console.log(`[Accuracy] Running news monitor`);
+    const newsResult = await runNewsMonitor({
+      season,
+      week: currentState.week,
+      runType: 'scheduled',
+    });
+
+    // Step 7: Clean up old alerts
+    const alertsDeactivated = await deactivateOldAlerts();
+
     return NextResponse.json({
       success: true,
       season,
@@ -99,6 +118,15 @@ export async function GET(request: NextRequest) {
         recommendationsGenerated: agentResult.recommendations.length,
         autoApplied: agentResult.autoApplied,
         proposalsCreated: agentResult.proposalsCreated,
+      },
+      schedule: {
+        gamesStored,
+        nextWeek: currentState.week,
+      },
+      news: {
+        alertsCreated: newsResult.alertsCreated,
+        newsItemsProcessed: newsResult.newsItemsProcessed,
+        alertsDeactivated,
       },
       updatedAt: report.updatedAt,
     });
