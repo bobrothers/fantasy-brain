@@ -45,7 +45,8 @@
       "Bash(do)",
       "Bash(done)",
       "Bash(xargs cat:*)",
-      "Bash(source .env)"
+      "Bash(source .env)",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://diwkdydpjakvwmzyijrk.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable__6aHmKNFZtSXTmwhJVTLYA_T2Ie5zr6 SUPABASE_SERVICE_ROLE_KEY=sb_secret_I7TTLDganP50U36QSOlRFA_hTb20dIq npx tsx:*)"
     ]
   }
 }

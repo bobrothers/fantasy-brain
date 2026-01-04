@@ -18,10 +18,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 });
     }
 
-    // Log prediction for accuracy tracking (async, don't await)
-    logPrediction(result).catch(err => {
+    // Log prediction for accuracy tracking (must await in serverless)
+    try {
+      await logPrediction(result);
+    } catch (err) {
       console.error('[Analyze] Prediction logging failed:', err);
-    });
+    }
 
     // Helper to extract signals for a given type prefix
     const getSignalsForType = (typePrefix: string) =>
