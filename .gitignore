@@ -21,3 +21,4 @@ npm-debug.log*
 # Zip files (development artifacts)
 *.zip
 .vercel
+.env.vercel
