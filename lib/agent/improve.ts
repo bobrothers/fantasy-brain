@@ -3,6 +3,12 @@
  *
  * Uses Claude to analyze prediction failures and generate improvements.
  * Can auto-apply safe changes and create GitHub issues for structural changes.
+ *
+ * Features:
+ * - Minimum sample size (20) before adjusting weights
+ * - Decision audit logging for all decisions
+ * - Rollback tracking with 2-week evaluation window
+ * - Auto-rollback if accuracy drops 10%+
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -11,6 +17,15 @@ import { getPatternsForAnalysis, getBadMisses } from '../db/analysis';
 import { getAllWeights } from '../db/learning';
 
 const anthropic = new Anthropic();
+
+// Configuration
+const CONFIG = {
+  MIN_SAMPLE_SIZE: 20, // Minimum predictions before adjusting weight
+  ROLLBACK_THRESHOLD: -10, // Auto-rollback if accuracy drops by this much (%)
+  EVALUATION_WEEKS: 2, // Weeks to wait before evaluating improvement
+  SAFE_WEIGHT_MIN: 0.5, // Minimum safe auto-apply weight
+  SAFE_WEIGHT_MAX: 2.0, // Maximum safe auto-apply weight
+};
 
 interface Recommendation {
   type: 'weight_adjustment' | 'threshold_change' | 'new_edge' | 'code_change' | 'data_source';
@@ -35,7 +50,45 @@ interface ImprovementReport {
   badMissesAnalyzed: number;
   recommendations: Recommendation[];
   autoApplied: number;
+  skippedInsufficientData: number;
   proposalsCreated: number;
+  decisionsLogged: number;
+  rollbacksTriggered: number;
+}
+
+interface AgentDecision {
+  decisionType: string;
+  edgeType?: string;
+  dataAnalyzed: Record<string, unknown>;
+  patternsConsidered?: Record<string, unknown>[];
+  sampleSize?: number;
+  reasoning: string;
+  actionTaken: string;
+  actionDetails?: Record<string, unknown>;
+  improvementId?: string;
+  proposalId?: string;
+}
+
+/**
+ * Log a decision to the audit table
+ */
+async function logDecision(decision: AgentDecision): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseServer();
+
+  await supabase.from('agent_decisions').insert({
+    decision_type: decision.decisionType,
+    edge_type: decision.edgeType,
+    data_analyzed: decision.dataAnalyzed,
+    patterns_considered: decision.patternsConsidered,
+    sample_size: decision.sampleSize,
+    reasoning: decision.reasoning,
+    action_taken: decision.actionTaken,
+    action_details: decision.actionDetails,
+    improvement_id: decision.improvementId,
+    proposal_id: decision.proposalId,
+  });
 }
 
 /**
@@ -50,8 +103,15 @@ export async function runImprovementAgent(season: number): Promise<ImprovementRe
     badMissesAnalyzed: 0,
     recommendations: [],
     autoApplied: 0,
+    skippedInsufficientData: 0,
     proposalsCreated: 0,
+    decisionsLogged: 0,
+    rollbacksTriggered: 0,
   };
+
+  // 0. Check for improvements needing evaluation/rollback
+  const rollbacks = await evaluateAndRollback();
+  report.rollbacksTriggered = rollbacks;
 
   // 1. Gather data for analysis
   const patterns = await getPatternsForAnalysis();
@@ -62,6 +122,13 @@ export async function runImprovementAgent(season: number): Promise<ImprovementRe
   report.badMissesAnalyzed = badMisses.length;
 
   if (patterns.length === 0 && badMisses.length === 0) {
+    await logDecision({
+      decisionType: 'no_action',
+      dataAnalyzed: { patterns: 0, badMisses: 0 },
+      reasoning: 'No patterns or bad misses to analyze',
+      actionTaken: 'none',
+    });
+    report.decisionsLogged++;
     console.log('[Agent] No patterns or bad misses to analyze');
     return report;
   }
@@ -76,23 +143,169 @@ export async function runImprovementAgent(season: number): Promise<ImprovementRe
   // 4. Process recommendations
   for (const rec of recommendations) {
     if (rec.autoApplicable && rec.type === 'weight_adjustment') {
-      // Auto-apply weight adjustments
-      const applied = await applyWeightAdjustment(rec);
-      if (applied) {
+      // Check sample size before applying
+      const weight = currentWeights.find(w => w.edgeType === rec.proposedChange.edgeType);
+      const sampleSize = weight?.predictions || 0;
+
+      if (sampleSize < CONFIG.MIN_SAMPLE_SIZE) {
+        // Insufficient data - skip and log
+        await logDecision({
+          decisionType: 'skip_insufficient_data',
+          edgeType: rec.proposedChange.edgeType,
+          dataAnalyzed: {
+            recommendation: rec.title,
+            proposedWeight: rec.proposedChange.newValue,
+          },
+          sampleSize,
+          reasoning: `Sample size ${sampleSize} is below minimum threshold of ${CONFIG.MIN_SAMPLE_SIZE}`,
+          actionTaken: 'skipped',
+          actionDetails: {
+            minRequired: CONFIG.MIN_SAMPLE_SIZE,
+            actual: sampleSize,
+          },
+        });
+        report.skippedInsufficientData++;
+        report.decisionsLogged++;
+        console.log(`[Agent] Skipping ${rec.proposedChange.edgeType}: insufficient data (${sampleSize}/${CONFIG.MIN_SAMPLE_SIZE})`);
+        continue;
+      }
+
+      // Auto-apply weight adjustment
+      const result = await applyWeightAdjustment(rec, sampleSize);
+      if (result.applied) {
+        await logDecision({
+          decisionType: 'weight_adjustment',
+          edgeType: rec.proposedChange.edgeType,
+          dataAnalyzed: {
+            recommendation: rec.title,
+            evidence: rec.evidence,
+          },
+          sampleSize,
+          reasoning: rec.proposedChange.reasoning,
+          actionTaken: 'applied',
+          actionDetails: {
+            oldWeight: rec.proposedChange.currentValue,
+            newWeight: rec.proposedChange.newValue,
+            evaluationDue: result.evaluationDue,
+          },
+          improvementId: result.improvementId,
+        });
         report.autoApplied++;
+        report.decisionsLogged++;
       }
     } else {
-      // Create proposal for human review or GitHub issue
+      // Create proposal for human review
       const proposalId = await createProposal(rec, patterns, badMisses);
       if (proposalId) {
+        await logDecision({
+          decisionType: 'proposal_created',
+          edgeType: rec.proposedChange.edgeType,
+          dataAnalyzed: {
+            recommendation: rec.title,
+            type: rec.type,
+            priority: rec.priority,
+          },
+          reasoning: `${rec.type} requires human review: ${rec.description}`,
+          actionTaken: 'deferred',
+          proposalId,
+        });
         report.proposalsCreated++;
+        report.decisionsLogged++;
       }
     }
   }
 
-  console.log(`[Agent] Generated ${recommendations.length} recommendations, auto-applied ${report.autoApplied}, created ${report.proposalsCreated} proposals`);
+  console.log(`[Agent] Generated ${recommendations.length} recommendations, auto-applied ${report.autoApplied}, skipped ${report.skippedInsufficientData}, created ${report.proposalsCreated} proposals`);
 
   return report;
+}
+
+/**
+ * Evaluate improvements due for evaluation and auto-rollback if needed
+ */
+async function evaluateAndRollback(): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+
+  const supabase = getSupabaseServer();
+  let rollbacks = 0;
+
+  // Get improvements due for evaluation
+  const { data: dueImprovements } = await supabase
+    .from('applied_improvements')
+    .select('*')
+    .eq('evaluation_complete', false)
+    .eq('rolled_back', false)
+    .lte('evaluation_due_at', new Date().toISOString());
+
+  if (!dueImprovements || dueImprovements.length === 0) return 0;
+
+  for (const improvement of dueImprovements) {
+    // Calculate accuracy since this improvement was applied
+    const { data: predsAfter } = await supabase
+      .from('prediction_analysis')
+      .select('was_hit')
+      .gte('analyzed_at', improvement.applied_at);
+
+    const countAfter = predsAfter?.length || 0;
+    const correctAfter = predsAfter?.filter(p => p.was_hit).length || 0;
+    const accuracyAfter = countAfter > 0 ? (correctAfter / countAfter) * 100 : null;
+
+    // Get baseline accuracy (before this improvement)
+    const accuracyBefore = improvement.accuracy_before || 50;
+    const accuracyDiff = accuracyAfter !== null ? accuracyAfter - accuracyBefore : 0;
+
+    // Update the improvement with current stats
+    await supabase
+      .from('applied_improvements')
+      .update({
+        predictions_after: countAfter,
+        accuracy_after: accuracyAfter,
+        improvement_detected: accuracyDiff > 0,
+        improvement_percentage: accuracyDiff,
+        evaluation_complete: true,
+      })
+      .eq('id', improvement.id);
+
+    // Check if we need to rollback
+    if (accuracyDiff <= CONFIG.ROLLBACK_THRESHOLD) {
+      const changeDetails = improvement.change_details as { edgeType?: string };
+      const reason = `Auto-rollback: Accuracy dropped ${accuracyDiff.toFixed(1)}% (threshold: ${CONFIG.ROLLBACK_THRESHOLD}%)`;
+
+      await rollbackImprovement(improvement.id, reason);
+
+      await logDecision({
+        decisionType: 'auto_rollback',
+        edgeType: changeDetails?.edgeType,
+        dataAnalyzed: {
+          accuracyBefore,
+          accuracyAfter,
+          accuracyDiff,
+          predictionsEvaluated: countAfter,
+        },
+        reasoning: reason,
+        actionTaken: 'rolled_back',
+        actionDetails: {
+          improvementId: improvement.id,
+          stateBefore: improvement.state_before,
+          stateAfter: improvement.state_after,
+        },
+        improvementId: improvement.id,
+      });
+
+      // Update to mark as auto-triggered
+      await supabase
+        .from('applied_improvements')
+        .update({ auto_rollback_triggered: true })
+        .eq('id', improvement.id);
+
+      rollbacks++;
+      console.log(`[Agent] Auto-rollback triggered for improvement ${improvement.id}: ${reason}`);
+    } else {
+      console.log(`[Agent] Improvement ${improvement.id} evaluated: accuracy ${accuracyDiff >= 0 ? '+' : ''}${accuracyDiff.toFixed(1)}%`);
+    }
+  }
+
+  return rollbacks;
 }
 
 /**
@@ -105,8 +318,11 @@ function buildAnalysisContext(
 ): string {
   let context = `# Fantasy Football Prediction System Analysis
 
-## Current Edge Weights
-${weights.map(w => `- ${w.edgeType}: ${w.weight.toFixed(2)}x (hit rate: ${w.hitRate}%, predictions: ${w.predictions})`).join('\n')}
+## Current Edge Weights (only consider edges with 20+ predictions)
+${weights.filter(w => w.predictions >= CONFIG.MIN_SAMPLE_SIZE).map(w => `- ${w.edgeType}: ${w.weight.toFixed(2)}x (hit rate: ${w.hitRate}%, predictions: ${w.predictions})`).join('\n')}
+
+## Edges with Insufficient Data (<${CONFIG.MIN_SAMPLE_SIZE} predictions) - DO NOT RECOMMEND CHANGES
+${weights.filter(w => w.predictions < CONFIG.MIN_SAMPLE_SIZE).map(w => `- ${w.edgeType}: ${w.predictions} predictions (need ${CONFIG.MIN_SAMPLE_SIZE})`).join('\n')}
 
 ## Detected Patterns (Problem Areas)
 ${patterns.length === 0 ? 'No concerning patterns detected.' : patterns.map(p => `
@@ -136,6 +352,8 @@ ${m.analysis.edgeSignalsUsed.slice(0, 5).map(s => `  - ${s.type}: magnitude ${s.
 - matchup_defense, matchup_def_injury, usage_target_share, usage_snap_count
 - usage_opportunity, contract_incentive, revenge_game, redzone_usage
 - home_away_split, primetime_performance, division_rivalry, indoor_outdoor
+
+IMPORTANT: Only recommend weight changes for edges with ${CONFIG.MIN_SAMPLE_SIZE}+ predictions.
 `;
 
   return context;
@@ -152,8 +370,9 @@ Your job is to:
 2. Propose specific, measurable improvements
 3. Distinguish between safe auto-apply changes and changes needing human review
 
-IMPORTANT GUIDELINES:
-- Weight adjustments between 0.5 and 2.0 are "safe" and can be auto-applied
+CRITICAL RULES:
+- ONLY recommend weight changes for edges with ${CONFIG.MIN_SAMPLE_SIZE}+ predictions
+- Weight adjustments between ${CONFIG.SAFE_WEIGHT_MIN} and ${CONFIG.SAFE_WEIGHT_MAX} are "safe" and can be auto-applied
 - Weight changes more drastic need review (auto_applicable: false)
 - Code changes always need review (auto_applicable: false)
 - Be specific: "Reduce weather_wind weight to 0.7" not "reduce weather impact"
@@ -178,7 +397,7 @@ Output your recommendations as a JSON array of objects with this structure:
   "expectedImprovement": "Expected impact description"
 }
 
-Only output the JSON array, no other text.`;
+Only output the JSON array, no other text. If no recommendations, output empty array [].`;
 
   try {
     const response = await anthropic.messages.create({
@@ -216,28 +435,36 @@ Only output the JSON array, no other text.`;
 /**
  * Apply a weight adjustment automatically
  */
-async function applyWeightAdjustment(rec: Recommendation): Promise<boolean> {
+async function applyWeightAdjustment(
+  rec: Recommendation,
+  sampleSize: number
+): Promise<{ applied: boolean; improvementId?: string; evaluationDue?: string }> {
   if (!isSupabaseConfigured() || !rec.proposedChange.edgeType) {
-    return false;
+    return { applied: false };
   }
 
   const supabase = getSupabaseServer();
 
-  // Get current weight
+  // Get current weight and accuracy
   const { data: currentData } = await supabase
     .from('edge_weights')
-    .select('current_weight')
+    .select('current_weight, hit_rate')
     .eq('edge_type', rec.proposedChange.edgeType)
     .single();
 
   const currentWeight = currentData?.current_weight || 1.0;
+  const currentAccuracy = currentData?.hit_rate || 50;
   const newWeight = rec.proposedChange.newValue || 1.0;
 
   // Validate change is safe (within bounds)
   if (newWeight < 0.2 || newWeight > 3.0) {
     console.log(`[Agent] Weight ${newWeight} out of safe bounds, skipping`);
-    return false;
+    return { applied: false };
   }
+
+  // Calculate evaluation due date (2 weeks from now)
+  const evaluationDue = new Date();
+  evaluationDue.setDate(evaluationDue.getDate() + CONFIG.EVALUATION_WEEKS * 7);
 
   // Update weight
   await supabase
@@ -252,13 +479,13 @@ async function applyWeightAdjustment(rec: Recommendation): Promise<boolean> {
     week: 0, // Agent-applied, not weekly
     weight_before: currentWeight,
     weight_after: newWeight,
-    hit_rate_this_week: null,
-    sample_size: null,
+    hit_rate_this_week: currentAccuracy,
+    sample_size: sampleSize,
     adjustment_reason: `[AI Agent] ${rec.title}: ${rec.proposedChange.reasoning}`,
   });
 
-  // Track in applied_improvements
-  await supabase.from('applied_improvements').insert({
+  // Track in applied_improvements with rollback tracking
+  const { data: improvement } = await supabase.from('applied_improvements').insert({
     change_type: 'weight',
     change_description: rec.title,
     change_details: {
@@ -268,10 +495,18 @@ async function applyWeightAdjustment(rec: Recommendation): Promise<boolean> {
     },
     state_before: { weight: currentWeight },
     state_after: { weight: newWeight },
-  });
+    accuracy_before: currentAccuracy,
+    evaluation_due_at: evaluationDue.toISOString(),
+    evaluation_complete: false,
+  }).select('id').single();
 
-  console.log(`[Agent] Applied weight change: ${rec.proposedChange.edgeType} ${currentWeight} -> ${newWeight}`);
-  return true;
+  console.log(`[Agent] Applied weight change: ${rec.proposedChange.edgeType} ${currentWeight} -> ${newWeight} (eval due: ${evaluationDue.toISOString()})`);
+
+  return {
+    applied: true,
+    improvementId: improvement?.id,
+    evaluationDue: evaluationDue.toISOString(),
+  };
 }
 
 /**
@@ -295,7 +530,7 @@ async function createProposal(
   const { data, error } = await supabase
     .from('improvement_proposals')
     .insert({
-      pattern_id: relatedPattern ? undefined : undefined, // Would need to look up by pattern
+      pattern_id: relatedPattern ? undefined : undefined,
       prediction_ids: badMisses.slice(0, 5).map(m => m.prediction.id),
       title: rec.title,
       description: rec.description,
@@ -410,6 +645,15 @@ ${proposal.expected_improvement}
       })
       .eq('id', proposalId);
 
+    await logDecision({
+      decisionType: 'github_issue_created',
+      dataAnalyzed: { proposalId, title: proposal.title },
+      reasoning: `Created GitHub issue for ${proposal.category} proposal: ${proposal.title}`,
+      actionTaken: 'applied',
+      actionDetails: { issueNumber: issue.number, issueUrl: issue.html_url },
+      proposalId,
+    });
+
     console.log(`[Agent] Created GitHub issue #${issue.number}: ${issue.html_url}`);
     return issue.html_url;
   } catch (error) {
@@ -518,4 +762,32 @@ export async function rollbackImprovement(improvementId: string, reason: string)
 
   console.log(`[Agent] Rolled back improvement ${improvementId}: ${reason}`);
   return true;
+}
+
+/**
+ * Get agent decision history for review
+ */
+export async function getDecisionHistory(limit = 50): Promise<AgentDecision[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = getSupabaseServer();
+
+  const { data } = await supabase
+    .from('agent_decisions')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  return (data || []).map(d => ({
+    decisionType: d.decision_type,
+    edgeType: d.edge_type,
+    dataAnalyzed: d.data_analyzed,
+    patternsConsidered: d.patterns_considered,
+    sampleSize: d.sample_size,
+    reasoning: d.reasoning,
+    actionTaken: d.action_taken,
+    actionDetails: d.action_details,
+    improvementId: d.improvement_id,
+    proposalId: d.proposal_id,
+  }));
 }

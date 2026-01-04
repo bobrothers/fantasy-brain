@@ -15,21 +15,22 @@ import { analyzeWeekPredictions } from '@/lib/db/analysis';
 import { espn } from '@/lib/providers/espn';
 
 export async function GET(request: NextRequest) {
-  // Verify auth in production
+  // Verify auth via x-agent-secret header (preferred) or Authorization header
+  const agentSecret = request.headers.get('x-agent-secret');
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  const searchParams = request.nextUrl.searchParams;
-  const secretParam = searchParams.get('secret');
 
   if (process.env.NODE_ENV === 'production' && cronSecret) {
     const isAuthorized =
-      authHeader === `Bearer ${cronSecret}` ||
-      secretParam === cronSecret;
+      agentSecret === cronSecret ||
+      authHeader === `Bearer ${cronSecret}`;
 
     if (!isAuthorized) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized. Use x-agent-secret header.' }, { status: 401 });
     }
   }
+
+  const searchParams = request.nextUrl.searchParams;
 
   try {
     const currentState = await espn.getCurrentWeek();
