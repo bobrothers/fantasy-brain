@@ -5,6 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 import { sleeper } from '@/lib/providers/sleeper';
 import { getSchedule, getCurrentWeek } from '@/lib/schedule';
 import { isConfirmedResting } from '@/lib/data/resting-players';

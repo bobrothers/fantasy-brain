@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
 import sleeper from '@/lib/providers/sleeper';
 
 export async function GET(request: NextRequest) {

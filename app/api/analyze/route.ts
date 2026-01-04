@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
 import edgeDetector from '@/lib/edge-detector';
 import { isConfirmedResting } from '@/lib/data/resting-players';
 import { logPrediction } from '@/lib/db/predictions';

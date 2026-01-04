@@ -5,6 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic - uses searchParams
+export const dynamic = 'force-dynamic';
 import { calculateAccuracy } from '@/lib/db/accuracy';
 import { espn } from '@/lib/providers/espn';
 

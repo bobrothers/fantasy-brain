@@ -10,6 +10,8 @@
  * NO hardcoded guesses or fabricated data.
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { sleeper } from '@/lib/providers/sleeper';
 import edgeDetector from '@/lib/edge-detector';

@@ -7,6 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 import { RESTING_PLAYERS_WEEK_18, isConfirmedResting } from '@/lib/data/resting-players';
 import { getCurrentWeek } from '@/lib/schedule';
 
