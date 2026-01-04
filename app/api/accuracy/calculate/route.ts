@@ -15,10 +15,17 @@ export async function GET(request: NextRequest) {
   // Verify cron secret (required for Vercel Cron)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
+  const searchParams = request.nextUrl.searchParams;
+  const secretParam = searchParams.get('secret');
 
   // Allow requests without auth in development, require in production
+  // Accept secret via header (Vercel Cron) or query param (manual trigger)
   if (process.env.NODE_ENV === 'production' && cronSecret) {
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const isAuthorized =
+      authHeader === `Bearer ${cronSecret}` ||
+      secretParam === cronSecret;
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
@@ -28,7 +35,6 @@ export async function GET(request: NextRequest) {
     const currentState = await espn.getCurrentWeek();
 
     // Check for season override in query params
-    const searchParams = request.nextUrl.searchParams;
     const seasonParam = searchParams.get('season');
     const season = seasonParam ? parseInt(seasonParam) : currentState.season;
 
