@@ -1,7 +1,8 @@
 /**
- * Accuracy Calculation API
+ * Accuracy Calculation + Learning API
  *
- * Calculates prediction accuracy after outcomes are fetched.
+ * Calculates prediction accuracy after outcomes are fetched,
+ * then runs the learning algorithm to adjust edge weights.
  * Protected by CRON_SECRET for Vercel Cron jobs.
  *
  * Vercel Cron: Runs Tuesday 11am UTC (after outcomes are fetched)
@@ -10,7 +11,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+
 import { calculateAccuracy } from '@/lib/db/accuracy';
+import { learnFromAccuracy } from '@/lib/db/learning';
 import { espn } from '@/lib/providers/espn';
 
 export async function GET(request: NextRequest) {
@@ -51,6 +54,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Run learning algorithm to adjust edge weights
+    const weekParam = searchParams.get('week');
+    const week = weekParam ? parseInt(weekParam) : currentState.week - 1;
+
+    console.log(`[Accuracy] Running learning for season ${season}, week ${week}`);
+    const learningResult = await learnFromAccuracy(season, week);
+
     return NextResponse.json({
       success: true,
       season,
@@ -59,6 +69,10 @@ export async function GET(request: NextRequest) {
       topEdges: Object.entries(report.byEdgeType)
         .slice(0, 5)
         .map(([type, stats]) => ({ type, hitRate: stats.hitRate })),
+      learning: {
+        weightsUpdated: learningResult.updated,
+        updates: learningResult.updates.slice(0, 5),
+      },
       updatedAt: report.updatedAt,
     });
   } catch (error) {
