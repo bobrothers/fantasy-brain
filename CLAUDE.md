@@ -10,7 +10,8 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 - **CLI tool** for player analysis: `npm run analyze "Player Name"`
 - **16 edge detectors** integrated into single analysis
 - **5 data providers** connected (Sleeper, Weather, ESPN, Odds API, nflfastR)
-- **Trade Analyzer** at /trade - Dynasty and Redraft modes
+- **Trade Analyzer** at /trade - Dynasty and Redraft modes with multi-player support
+- **Team Diagnosis** at /diagnose - Dynasty roster evaluation
 - **Waiver Wire Scanner** at /waivers - Real trending data from Sleeper API
 - **Live Scores Ticker** - ESPN scoreboard with seamless animation
 - **Dynamic schedule** from ESPN API (supports any week)
@@ -24,26 +25,39 @@ Fantasy Brain is an in-season fantasy football assistant that surfaces "hidden e
 - Deep stats: Snap trend, Air yards share, Target premium, Divisional performance, Second half surge
 - Lock countdown timer (shows "Locks in Xh Xm", red under 1hr)
 - Resting/Suspended player banner (suspended shows in red)
-- **Edge Impact tooltip** - hover to see score scale explanation
-- **Live scores ticker** - shows game scores or upcoming matchups (BAL @ PIT SNF)
+- Edge Impact tooltip - hover to see score scale explanation
+- Live scores ticker - shows game scores or upcoming matchups (BAL @ PIT SNF)
 
 #### Trade Analyzer (/trade)
 - **Dynasty mode**:
-  - Core: Age curves by position, injury history, situation stability
+  - Core: Age curves by position, durability/injury analysis, situation stability
+  - **Durability Analysis**: Games played %, injury type tracking, recurring issue detection
+    - Ratings: IRON MAN, DURABLE, MODERATE, INJURY PRONE, GLASS
+    - 3-season availability tracking with recency weighting
+    - Age + injury combo risk (flags aging players with soft tissue history)
+    - Major injury recovery status tracking
   - Draft capital (1st rounders get bonus), Breakout age (early = longer prime)
   - Offensive ranking (elite offenses boost value), Depth chart threat
+  - **Contract Analysis**: Status, years remaining, dead cap, rookie deal value
+  - **Sell Window Alerts**: SELL NOW, SELL SOON, BUY LOW, BUY NOW based on age/injury
   - **Draft pick values**: Add picks to trades (2026-2028, rounds 1-4)
-    - Shows player equivalent: "2026 Mid 1st ≈ Mid WR2/RB2 (72 pts)"
-    - Future picks discounted for uncertainty
-    - Multi-asset trades with value breakdown
+  - **Consolidation warnings**: "3 nickels ≠ 1 dollar" trade detection
 - **Redraft mode**:
   - Core: Playoff schedule (Wks 15-17), availability, usage trends
-  - **Hot/cold streak** - LIVE from Sleeper weekly stats (last 4 games PPG)
+  - Hot/cold streak - LIVE from Sleeper weekly stats (last 4 games PPG)
   - Vegas implied points (team scoring environment)
   - Playoff weather (cold weather games), Positional scarcity (TE premium)
-  - **Primetime schedule** - LIVE from ESPN API (SNF/MNF/TNF detection)
+  - Primetime schedule - LIVE from ESPN API (SNF/MNF/TNF detection)
 - Verdict system: ACCEPT / REJECT / SLIGHT EDGE / TOSS-UP
 - "Gun to head" recommendation for close calls
+
+#### Team Diagnosis (/diagnose)
+- Enter roster players for dynasty classification
+- Classifications: CONTENDER, REBUILD, STUCK IN THE MIDDLE
+- Position group strength ratings
+- Key metrics: elite assets, young assets, aging assets
+- Strategic recommendations with moves, targets, sells, holds
+- Championship window outlook
 
 #### Waiver Wire Scanner (/waivers)
 - Real trending adds from Sleeper API
@@ -68,7 +82,7 @@ npm run test-providers                   # Verify API connections
 | travel-rest | ESPN Schedule | ✅ Live |
 | ol-injury | ESPN API | ✅ Live |
 | betting-signals | Odds API | ✅ Live |
-| defense-vs-position | **Sleeper + ESPN** | ✅ **LIVE** |
+| defense-vs-position | Sleeper + ESPN | ✅ Live |
 | opposing-defense-injuries | Sleeper API | ✅ Live |
 | usage-trends | Sleeper weekly stats | ✅ Live |
 | contract-incentives | Manual | ⚠️ ~15 players |
@@ -79,31 +93,31 @@ npm run test-providers                   # Verify API connections
 | division-rivalry | ESPN Schedule | ✅ Live |
 | rest-advantage | ESPN Schedule | ✅ Live |
 | indoor-outdoor-splits | Hardcoded | ⚠️ Sample data |
-| coverage-matchup | Sharp Football | ✅ Live tendencies, ~40 players tagged |
+| coverage-matchup | Sharp Football | ✅ Live tendencies, ~50 players tagged |
 
-#### Trade Value Metrics
+#### Dynasty Trade Value Metrics
 | Metric | Source | Coverage |
 |--------|--------|----------|
 | Age curves | Position formulas | ✅ All positions |
-| **Hot/cold streak** | **Sleeper API** | ✅ **ALL PLAYERS** |
-| **Primetime schedule** | **ESPN API** | ✅ **ALL TEAMS** |
-| Injury history | Manual | ⚠️ ~25 players |
-| Situation/contract | Manual | ⚠️ ~15 players |
+| **Durability analysis** | **Injury history data** | ✅ **~50 players** |
+| Hot/cold streak | Sleeper API | ✅ All players |
+| Primetime schedule | ESPN API | ✅ All teams |
+| Contract data | Manual | ⚠️ ~40 players |
+| Situation analysis | Manual | ⚠️ ~30 players |
+| QB stability | Manual | ⚠️ ~25 teams |
+| Target competition | Manual | ⚠️ ~40 players |
 | Draft capital | Manual | ⚠️ ~35 players |
 | Breakout age | Manual | ⚠️ ~20 players |
 | Offensive ranking | Static 2024-25 | ⚠️ All teams |
 | Depth chart threat | Manual | ⚠️ ~11 players |
-| Vegas implied | Static estimates | ⚠️ All teams |
-| Positional scarcity | Manual tiers | ⚠️ ~11 players |
 
 ### Known Issues
-1. Home/away, indoor/outdoor splits use sample data
+1. Home/away, indoor/outdoor splits use sample data (need historical game logs)
 2. Revenge games only has ~7 players hardcoded
-3. Dynasty trade metrics (injury history, situation, draft capital) limited to top ~25-35 players
-   - Sleeper API lacks: historical injuries, draft round/pick, contract data
-   - Would need: Pro-Football-Reference, Spotrac, OverTheCap
-4. Usage trends shows "N/A" for QBs (by design)
-5. Defense rankings calculation takes ~5-10 seconds on first load (cached for 1 hour after)
+3. Dynasty trade metrics limited coverage - need Pro-Football-Reference, Spotrac for more
+4. Usage trends shows "N/A" for QBs (by design - no target/carry share)
+5. Defense rankings calculation takes ~5-10 seconds on first load (cached 1 hour)
+6. Injury data needs expansion beyond current ~50 players
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
@@ -141,6 +155,7 @@ npm run test-providers                   # Verify API connections
   /api/resting/       # Resting/suspended players API
   /trade/             # Trade analyzer UI
   /waivers/           # Waiver scanner UI
+  /diagnose/          # Team diagnosis UI
   page.tsx            # Main UI (player analysis)
 /components
   PlayerAutocomplete.tsx
@@ -150,9 +165,9 @@ npm run test-providers                   # Verify API connections
   DeepStats.tsx
 /lib
   /providers/         # sleeper.ts, espn.ts, weather.ts, odds.ts, nflfastr.ts
-  /edge/              # 15 edge detector modules
-  /trade/             # dynasty-value.ts, redraft-value.ts
-  /data/              # resting-players.ts (manual data)
+  /edge/              # 16 edge detector modules
+  /trade/             # dynasty-value.ts, redraft-value.ts, injury-analysis.ts
+  /data/              # contracts.ts, situations.ts, injuries.ts, resting-players.ts
   schedule.ts         # Dynamic schedule service (ESPN API)
   edge-detector.ts    # Main orchestrator
 /types/               # TypeScript interfaces

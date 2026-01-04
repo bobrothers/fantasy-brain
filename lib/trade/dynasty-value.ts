@@ -13,6 +13,7 @@
 import type { Player } from '../../types';
 import { CONTRACT_DATA, getContractSummary, getContractRisk, ContractInfo } from '@/lib/data/contracts';
 import { analyzeSituation, SituationAnalysis } from '@/lib/edge/situation-analysis';
+import { analyzeDurability, DurabilityAnalysis, getDurabilityColor } from '@/lib/trade/injury-analysis';
 
 // Position-specific age curves (peak years and decline rates)
 // Based on historical NFL data
@@ -464,6 +465,20 @@ export interface DynastyValue {
     isRookieDeal: boolean;
   };
   situationAnalysis?: SituationAnalysis;
+  durability?: {
+    rating: DurabilityAnalysis['durabilityRating'];
+    availabilityRate: number;
+    gamesPlayed: number;
+    gamesMissed: number;
+    seasonsTracked: number;
+    hasRecurringIssue: boolean;
+    recurringDescription?: string;
+    riskFactors: string[];
+    majorInjuryRecovery?: DurabilityAnalysis['majorInjuryRecovery'];
+    ageInjuryRisk?: DurabilityAnalysis['ageInjuryRisk'];
+    displayText: string;
+    shortDisplay: string;
+  };
   factors: {
     positive: string[];
     negative: string[];
@@ -537,46 +552,45 @@ export function calculateDynastyValue(player: Player): DynastyValue {
   }
   ageScore = Math.max(0, Math.min(35, ageScore));
 
-  // 2. Injury Score (0-30 points)
-  let injuryScore = 30;
-  const injuryData = INJURY_HISTORY[player.name];
+  // 2. Injury/Durability Score (0-30 points) - using comprehensive injury analysis
+  const durabilityAnalysis = analyzeDurability(player.name, age);
+  let injuryScore = durabilityAnalysis.durabilityScore;
 
-  if (injuryData) {
-    const majorInjuries = injuryData.injuries.filter(i => i.severity === 'major').length;
-
-    if (injuryData.concern === 'high') {
-      injuryScore = 10;
-      factors.negative.push(`High injury concern: ${majorInjuries} major injuries, ${injuryData.recurring ? 'recurring pattern' : 'durability questions'}`);
-    } else if (injuryData.concern === 'moderate') {
-      injuryScore = 20;
-      factors.neutral.push(`Moderate injury history: ${majorInjuries} major injury${majorInjuries !== 1 ? 'ies' : ''}`);
-    } else if (injuryData.concern === 'low') {
-      injuryScore = 27;
-      factors.positive.push('Minor injury history - generally durable');
-    } else {
-      injuryScore = 30;
-      factors.positive.push('Clean injury history');
-    }
-
-    // ACL penalty
-    const hasACL = injuryData.injuries.some(i => i.type.includes('ACL'));
-    if (hasACL && position === 'RB') {
-      injuryScore -= 5;
-      factors.negative.push('ACL history (RB concern)');
-    }
-
-    // Recurring soft tissue
-    if (injuryData.recurring && injuryData.injuries.some(i =>
-      i.type.includes('Hamstring') || i.type.includes('Ankle') || i.type.includes('Achilles')
-    )) {
-      injuryScore -= 5;
-      factors.negative.push('Recurring soft tissue injuries');
-    }
+  // Add durability factors
+  if (durabilityAnalysis.durabilityRating === 'unknown') {
+    factors.neutral.push('No injury data available');
   } else {
-    // No data - assume average
-    injuryScore = 22;
-    factors.neutral.push('No detailed injury data');
+    // Rating-based factors
+    if (durabilityAnalysis.durabilityRating === 'iron_man') {
+      factors.positive.push(`${durabilityAnalysis.displayText}`);
+    } else if (durabilityAnalysis.durabilityRating === 'durable') {
+      factors.positive.push(`${durabilityAnalysis.shortDisplay} - solid availability`);
+    } else if (durabilityAnalysis.durabilityRating === 'moderate') {
+      factors.neutral.push(`${durabilityAnalysis.displayText}`);
+    } else if (durabilityAnalysis.durabilityRating === 'injury_prone') {
+      factors.negative.push(`${durabilityAnalysis.displayText}`);
+    } else if (durabilityAnalysis.durabilityRating === 'glass') {
+      factors.negative.push(`GLASS: ${durabilityAnalysis.availabilityRate}% availability - extreme injury risk`);
+    }
+
+    // Add risk factors
+    for (const risk of durabilityAnalysis.riskFactors.slice(0, 2)) {
+      factors.negative.push(risk);
+    }
+
+    // Age + injury combo risk
+    if (durabilityAnalysis.ageInjuryRisk) {
+      if (durabilityAnalysis.ageInjuryRisk.level === 'extreme' || durabilityAnalysis.ageInjuryRisk.level === 'high') {
+        factors.negative.push(durabilityAnalysis.ageInjuryRisk.description);
+      }
+    }
+
+    // Major injury recovery status
+    if (durabilityAnalysis.majorInjuryRecovery && durabilityAnalysis.majorInjuryRecovery.monthsSince < 12) {
+      factors.neutral.push(`${durabilityAnalysis.majorInjuryRecovery.monthsSince} months post-${durabilityAnalysis.majorInjuryRecovery.injury} - ${durabilityAnalysis.majorInjuryRecovery.recoveryStatus}`);
+    }
   }
+
   injuryScore = Math.max(0, Math.min(30, injuryScore));
 
   // 3. Situation Score (0-35 points)
@@ -867,6 +881,22 @@ export function calculateDynastyValue(player: Player): DynastyValue {
     summary += `Avoid for dynasty. Limited upside remaining.`;
   }
 
+  // Build durability info for UI
+  const durabilityInfo: DynastyValue['durability'] = durabilityAnalysis.durabilityRating !== 'unknown' ? {
+    rating: durabilityAnalysis.durabilityRating,
+    availabilityRate: durabilityAnalysis.availabilityRate,
+    gamesPlayed: durabilityAnalysis.gamesPlayed,
+    gamesMissed: durabilityAnalysis.gamesMissed,
+    seasonsTracked: durabilityAnalysis.seasonsTracked,
+    hasRecurringIssue: durabilityAnalysis.hasRecurringIssue,
+    recurringDescription: durabilityAnalysis.recurringDescription,
+    riskFactors: durabilityAnalysis.riskFactors,
+    majorInjuryRecovery: durabilityAnalysis.majorInjuryRecovery,
+    ageInjuryRisk: durabilityAnalysis.ageInjuryRisk,
+    displayText: durabilityAnalysis.displayText,
+    shortDisplay: durabilityAnalysis.shortDisplay,
+  } : undefined;
+
   return {
     player,
     overallScore,
@@ -888,6 +918,7 @@ export function calculateDynastyValue(player: Player): DynastyValue {
     depthThreat: depthThreatInfo,
     contract: contractInfo,
     situationAnalysis: sitAnalysis,
+    durability: durabilityInfo,
     factors,
     summary,
   };

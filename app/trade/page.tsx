@@ -41,6 +41,27 @@ interface DynastyValue {
     isContractYear: boolean;
     isRookieDeal: boolean;
   };
+  durability?: {
+    rating: 'iron_man' | 'durable' | 'moderate' | 'injury_prone' | 'glass' | 'unknown';
+    availabilityRate: number;
+    gamesPlayed: number;
+    gamesMissed: number;
+    seasonsTracked: number;
+    hasRecurringIssue: boolean;
+    recurringDescription?: string;
+    riskFactors: string[];
+    majorInjuryRecovery?: {
+      injury: string;
+      monthsSince: number;
+      recoveryStatus: string;
+    };
+    ageInjuryRisk?: {
+      level: 'low' | 'medium' | 'high' | 'extreme';
+      description: string;
+    };
+    displayText: string;
+    shortDisplay: string;
+  };
   factors: { positive: string[]; negative: string[]; neutral: string[] };
   summary: string;
 }
@@ -270,6 +291,28 @@ export default function TradePage() {
       case 'BUY LOW': return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
       case 'BUY NOW': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
       default: return 'bg-zinc-700/20 text-zinc-400 border-zinc-600/50';
+    }
+  };
+
+  const getDurabilityStyle = (rating: DynastyValue['durability'] extends undefined ? never : NonNullable<DynastyValue['durability']>['rating']) => {
+    switch (rating) {
+      case 'iron_man': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
+      case 'durable': return 'bg-lime-500/20 text-lime-400 border-lime-500/50';
+      case 'moderate': return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
+      case 'injury_prone': return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
+      case 'glass': return 'bg-red-500/20 text-red-400 border-red-500/50';
+      default: return 'bg-zinc-700/20 text-zinc-400 border-zinc-600/50';
+    }
+  };
+
+  const getDurabilityLabel = (rating: DynastyValue['durability'] extends undefined ? never : NonNullable<DynastyValue['durability']>['rating']) => {
+    switch (rating) {
+      case 'iron_man': return 'IRON MAN';
+      case 'durable': return 'DURABLE';
+      case 'moderate': return 'MODERATE';
+      case 'injury_prone': return 'INJURY PRONE';
+      case 'glass': return 'GLASS';
+      default: return 'UNKNOWN';
     }
   };
 
@@ -759,7 +802,7 @@ function PlayerCard({
             <ScoreBar label="Situation" score={dynasty.situationScore} max={35} />
           </div>
 
-          {/* Contract Info - NEW */}
+          {/* Contract Info */}
           {dynasty.contract && (
             <div className={`p-2 border text-xs ${
               dynasty.contract.risk === 'low' ? 'border-emerald-700/50 bg-emerald-950/20' :
@@ -781,6 +824,54 @@ function PlayerCard({
               )}
               {dynasty.contract.isRookieDeal && (
                 <div className="text-emerald-400 mt-1">Rookie deal surplus value</div>
+              )}
+            </div>
+          )}
+
+          {/* Durability Info */}
+          {dynasty.durability && (
+            <div className={`p-2 border text-xs ${
+              dynasty.durability.rating === 'iron_man' ? 'border-emerald-700/50 bg-emerald-950/20' :
+              dynasty.durability.rating === 'durable' ? 'border-lime-700/50 bg-lime-950/20' :
+              dynasty.durability.rating === 'moderate' ? 'border-amber-700/50 bg-amber-950/20' :
+              dynasty.durability.rating === 'injury_prone' ? 'border-orange-700/50 bg-orange-950/20' :
+              'border-red-700/50 bg-red-950/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400 uppercase tracking-wider">Durability</span>
+                <span className={`font-bold ${
+                  dynasty.durability.rating === 'iron_man' ? 'text-emerald-400' :
+                  dynasty.durability.rating === 'durable' ? 'text-lime-400' :
+                  dynasty.durability.rating === 'moderate' ? 'text-amber-400' :
+                  dynasty.durability.rating === 'injury_prone' ? 'text-orange-400' :
+                  'text-red-400'
+                }`}>
+                  {dynasty.durability.rating === 'iron_man' ? 'IRON MAN' :
+                   dynasty.durability.rating === 'durable' ? 'DURABLE' :
+                   dynasty.durability.rating === 'moderate' ? 'MODERATE' :
+                   dynasty.durability.rating === 'injury_prone' ? 'INJURY PRONE' : 'GLASS'}
+                </span>
+              </div>
+              <div className="text-zinc-300 mt-1">
+                {dynasty.durability.gamesPlayed}/{dynasty.durability.gamesPlayed + dynasty.durability.gamesMissed} games ({dynasty.durability.availabilityRate}%) - {dynasty.durability.seasonsTracked} seasons
+              </div>
+              {dynasty.durability.hasRecurringIssue && dynasty.durability.recurringDescription && (
+                <div className="text-orange-400 mt-1">{dynasty.durability.recurringDescription}</div>
+              )}
+              {dynasty.durability.majorInjuryRecovery && dynasty.durability.majorInjuryRecovery.monthsSince < 18 && (
+                <div className="text-amber-400 mt-1">
+                  {dynasty.durability.majorInjuryRecovery.monthsSince}mo post-{dynasty.durability.majorInjuryRecovery.injury.split(' ')[0]}
+                </div>
+              )}
+              {dynasty.durability.ageInjuryRisk && (dynasty.durability.ageInjuryRisk.level === 'high' || dynasty.durability.ageInjuryRisk.level === 'extreme') && (
+                <div className="text-red-400 mt-1">{dynasty.durability.ageInjuryRisk.description}</div>
+              )}
+              {dynasty.durability.riskFactors.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-zinc-700">
+                  {dynasty.durability.riskFactors.slice(0, 2).map((risk, i) => (
+                    <div key={i} className="text-orange-300/80 text-[10px]">• {risk}</div>
+                  ))}
+                </div>
               )}
             </div>
           )}

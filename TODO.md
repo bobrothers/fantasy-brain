@@ -2,38 +2,36 @@
 
 ## High Priority
 
-### Multi-Player Trades
-- [x] Support 2-for-1, 3-for-2 trades in trade analyzer ✅
-- [x] Sum values for trade packages ✅
-- [x] Show which side is giving up more ✅
-
 ### Roster Integration
 - [ ] Connect to Sleeper league by league ID
 - [ ] Import user's roster
 - [ ] "Analyze My Team" - batch analyze all roster players
 - [ ] Start/sit recommendations based on edge scores
 
-### Live Data Sources (Replace Hardcoded)
-- [x] Defense rankings - NOW LIVE from Sleeper + ESPN ✅
-- [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
-
-## Medium Priority
-
-### Data Coverage Expansion
-- [ ] Expand trade value data beyond top ~25 players
-- [ ] More revenge game matchups (currently ~7 players)
-- [ ] More contract incentive data
-- [ ] Use Sleeper's depth_chart_order for dynamic depth chart threats
-
 ### Live Alerts
 - [ ] Injury alerts (push notification when star player status changes)
 - [ ] Line movement alerts (significant spread/total changes)
-- [ ] Resting player alerts (auto-detect from news)
+- [ ] Resting player alerts (auto-detect from news/Sleeper)
+
+### Data Coverage Expansion
+- [ ] Expand injury data beyond current ~50 players
+- [ ] More revenge game matchups (currently ~7 players)
+- [ ] More contract incentive data
+- [ ] Use Sleeper's depth_chart_order for dynamic depth chart threats
+- [ ] Offensive rankings from ESPN/PFF (currently static 2024-25)
+
+## Medium Priority
 
 ### UX Improvements
 - [ ] Mobile responsive improvements
 - [ ] Dark/light mode toggle
 - [ ] Comparison view (side-by-side players)
+- [ ] Waiver FAAB suggestions based on edge scores
+
+### Data Quality
+- [ ] Home/away splits from nflfastR play-by-play (currently hardcoded)
+- [ ] Indoor/outdoor splits from nflfastR (currently hardcoded)
+- [ ] Primetime historical performance from nflfastR
 
 ## Low Priority / Future Ideas
 
@@ -42,87 +40,40 @@
 - [ ] Playoff bracket simulator
 - [ ] Draft assistant mode (dynasty rookie drafts)
 - [ ] League-specific scoring (PPR vs Standard vs Half-PPR adjustments)
+- [ ] Auction draft values
+
+---
 
 ## Completed (January 2026)
 
-### This Session
-- [x] **Sell Window Alerts** - Flag players approaching decline window
-  - Position-specific age cliffs (RB at 27, WR at 30, TE at 31, QB at 36)
-  - Urgency levels: SELL NOW, SELL SOON, HOLD, BUY LOW, BUY NOW
-  - Injury history accelerates sell window
-  - Contract year and situation factors
-  - Elite years remaining calculation
-  - Action advice for each player
-- [x] **Consolidation Analyzer** - "3 nickels ≠ 1 dollar" trade warnings
-  - Detects multi-for-one trades automatically
-  - Premium calculations: 2-for-1 = 15%, 3-for-1 = 25%, 4-for-1 = 35%
-  - Warning displayed in trade verdict
-  - Recommendation for adjusting offers
-- [x] **Team Diagnosis** - Dynasty roster evaluation tool
-  - Enter roster players for classification
-  - Classifications: CONTENDER, REBUILD, STUCK IN THE MIDDLE
-  - Position group strength ratings
-  - Key metrics: elite assets, young assets, aging assets
-  - Strategic recommendations with moves, targets, sells, holds
-  - Strengths/weaknesses analysis
-  - Championship window outlook
-  - New /diagnose page with full UI
-- [x] **Contract Analysis** - Comprehensive contract data for dynasty evaluations
-  - Contract status (elite/secure/tradeable/cuttable/expiring)
-  - Years remaining, dead cap, avg annual value
-  - Rookie deal surplus value detection
-  - Contract year motivation boost
-  - "Got the bag" decline risk warning
-  - Extension eligibility tracking
-- [x] **Situation Analysis Edge Detector** - New factors affecting player value
-  - QB stability (elite/locked/competition/uncertain/disaster)
-  - Target/touch competition (bellcow/lead/committee/backup)
-  - Coaching stability and scheme changes
-  - Draft capital invested (affects leash length)
-- [x] **Multi-Player Trades** - 2-for-1, 3-for-2 trade support
-  - Up to 4 players per side
-  - Sum values for trade packages
-  - Value breakdown display
-- [x] **Draft Pick Value Converter** - Add picks to dynasty trades
-  - Picks 2026-2028, rounds 1-4, early/mid/late positions
-  - Shows player equivalents: "2026 Mid 1st ≈ Mid WR2/RB2"
-  - Prominent value display with large point score when selecting picks
-  - Hit rate context tooltip explaining the scoring
-  - Future picks discounted (8-30% for uncertainty)
-  - Multi-asset trades: player + picks combos with value breakdown
-- [x] **Coverage matchup edge** - man vs zone analysis from Sharp Football data
-  - Defense tendencies (man% vs zone%) for all 32 teams
-  - ~40 WRs/TEs tagged as man-beaters or zone-beaters
-  - Smash spots when player type opposes coverage scheme
-- [x] Fixed weather: now checks 3-hour game window (not just start time)
-- [x] Fixed weather timezone: uses stadium timezone instead of system timezone
-- [x] Live scores ticker from ESPN (shows scores or "BAL @ PIT SNF" format)
-- [x] Edge Impact tooltip explaining the score scale
-- [x] Fixed Weekly Snap % chart not rendering bars
-- [x] Fixed Washington team abbreviation (WSH → WAS)
-- [x] Hot/cold streak now LIVE from Sleeper weekly stats API
-- [x] Primetime schedule now LIVE from ESPN API
-- [x] Deep stats verified - already using live Sleeper data
+### Session 3 (Jan 3)
+- [x] **Durability Analysis** - Comprehensive injury tracking for dynasty
+  - Games played % over 3 seasons with recency weighting
+  - Injury types: soft tissue, ACL, concussions, ankle/foot
+  - Ratings: IRON MAN, DURABLE, MODERATE, INJURY PRONE, GLASS
+  - Age + injury combo risk detection
+  - Major injury recovery status
+  - ~50 players with injury history data
+- [x] **Coverage Matchup Fix** - Corrected inverted logic (zone-beaters beat zone)
+- [x] **Stefon Diggs Fix** - Updated to Patriots (was showing as Texans)
 
-### Earlier This Session
+### Session 2 (Jan 2-3)
+- [x] **Sell Window Alerts** - SELL NOW, SELL SOON, BUY LOW, BUY NOW
+- [x] **Consolidation Analyzer** - "3 nickels ≠ 1 dollar" warnings
+- [x] **Team Diagnosis** - Dynasty roster evaluation at /diagnose
+- [x] **Contract Analysis** - Status, dead cap, rookie deal value
+- [x] **Situation Analysis** - QB stability, target competition
+- [x] **Multi-Player Trades** - Up to 4 players per side
+- [x] **Draft Pick Values** - 2026-2028, rounds 1-4, player equivalents
+- [x] **Coverage Matchup Edge** - Man vs zone from Sharp Football
+
+### Session 1 (Dec-Jan)
 - [x] Trade analyzer with Dynasty/Redraft modes
-- [x] Dynasty metrics: Draft capital, breakout age, offensive ranking, depth chart threat
-- [x] Redraft metrics: Hot/cold streak, Vegas implied, playoff weather, positional scarcity, primetime
-- [x] Player search autocomplete prioritizes active players
-- [x] Suspended players show in red (vs purple for resting)
-- [x] DK Metcalf updated to PIT, marked as Suspended
-- [x] Usage trend chart from real Sleeper 2025 data
-- [x] Cold weather performance tracking
-- [x] Deep stats: Snap trend, Air yards, Target premium, Divisional, Second half surge
-- [x] Navigation bar on all pages
-- [x] SNF/MNF primetime detection fixed (UTC timezone issue)
-
-### Previous Sessions
 - [x] 16 edge detectors implemented
 - [x] Web UI deployed to Vercel
-- [x] Waiver Wire Scanner with real Sleeper trending data
-- [x] ACCEPT/REJECT verdict system with "gun to head" recommendation
-- [x] Position-specific age curves (RB decline at 27, WR peak 26-30)
-- [x] Dynamic schedule from ESPN API (supports any week)
-- [x] Lock countdown timer
-- [x] Resting starters detection banner
+- [x] Waiver Wire Scanner with Sleeper trending
+- [x] Live scores ticker from ESPN
+- [x] Dynamic schedule from ESPN API
+- [x] Defense rankings from Sleeper + ESPN (live)
+- [x] Hot/cold streak from Sleeper weekly stats
+- [x] Primetime schedule from ESPN API
