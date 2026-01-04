@@ -195,9 +195,9 @@ export async function analyzePlayer(
   allSignals.push(...rzResult.signals);
   summaries.redZone = rzResult.summary;
 
-  // 11. Home/Away Splits
+  // 11. Home/Away Splits (now async - uses live nflverse data)
   console.log('  Checking home/away splits...');
-  const homeAwayResult = detectHomeAwaySplitEdge(player, gameInfo.isHome, targetWeek);
+  const homeAwayResult = await detectHomeAwaySplitEdge(player, gameInfo.isHome, targetWeek);
   allSignals.push(...homeAwayResult.signals);
   summaries.homeAway = homeAwayResult.summary;
 

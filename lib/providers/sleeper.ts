@@ -1136,6 +1136,104 @@ export const sleeper = {
       differential: Math.round((avgColdPoints - avgAllPoints) * 10) / 10,
     };
   },
+
+  /**
+   * Get season production stats for multiple players (for Win Now assessment)
+   * Returns PPG, total points, games played, and recent form
+   */
+  async getBatchSeasonStats(playerIds: string[]): Promise<Map<string, {
+    seasonPPG: number;
+    last4PPG: number;
+    totalPoints: number;
+    gamesPlayed: number;
+    weeklyPoints: number[];
+    trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
+  }>> {
+    const results = new Map<string, {
+      seasonPPG: number;
+      last4PPG: number;
+      totalPoints: number;
+      gamesPlayed: number;
+      weeklyPoints: number[];
+      trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
+    }>();
+
+    try {
+      const nflState = await this.getNflState();
+      const season = parseInt(nflState.season);
+      const currentWeek = nflState.week;
+
+      // Collect weekly points for all players
+      const playerWeeklyPoints = new Map<string, number[]>();
+      for (const id of playerIds) {
+        playerWeeklyPoints.set(id, []);
+      }
+
+      // Fetch each week's stats
+      for (let week = 1; week <= currentWeek; week++) {
+        try {
+          const url = `${BASE_URL}/stats/nfl/regular/${season}/${week}`;
+          const cached = cache.get(url);
+          let weekStats: Record<string, Record<string, number>>;
+
+          if (cached && cached.expires > Date.now()) {
+            weekStats = cached.data as Record<string, Record<string, number>>;
+          } else {
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            weekStats = await response.json();
+            cache.set(url, { data: weekStats, expires: Date.now() + 60 * 60 * 1000 });
+          }
+
+          // Extract PPR points for each player
+          for (const playerId of playerIds) {
+            const playerStats = weekStats[playerId];
+            if (playerStats?.pts_ppr !== undefined && playerStats.pts_ppr > 0) {
+              playerWeeklyPoints.get(playerId)?.push(playerStats.pts_ppr);
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      // Calculate stats for each player
+      for (const [playerId, weeklyPoints] of playerWeeklyPoints) {
+        if (weeklyPoints.length === 0) continue;
+
+        const totalPoints = weeklyPoints.reduce((sum, p) => sum + p, 0);
+        const seasonPPG = totalPoints / weeklyPoints.length;
+
+        // Last 4 weeks
+        const last4 = weeklyPoints.slice(-4);
+        const last4PPG = last4.length > 0
+          ? last4.reduce((sum, p) => sum + p, 0) / last4.length
+          : seasonPPG;
+
+        // Determine trend
+        const pctDiff = seasonPPG > 0 ? ((last4PPG - seasonPPG) / seasonPPG) * 100 : 0;
+        let trend: 'hot' | 'warm' | 'neutral' | 'cold' | 'ice';
+        if (pctDiff >= 20) trend = 'hot';
+        else if (pctDiff >= 8) trend = 'warm';
+        else if (pctDiff <= -20) trend = 'ice';
+        else if (pctDiff <= -8) trend = 'cold';
+        else trend = 'neutral';
+
+        results.set(playerId, {
+          seasonPPG: Math.round(seasonPPG * 10) / 10,
+          last4PPG: Math.round(last4PPG * 10) / 10,
+          totalPoints: Math.round(totalPoints * 10) / 10,
+          gamesPlayed: weeklyPoints.length,
+          weeklyPoints,
+          trend,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching batch season stats:', error);
+    }
+
+    return results;
+  },
 };
 
 export default sleeper;

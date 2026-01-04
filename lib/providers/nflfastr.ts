@@ -103,12 +103,75 @@ interface TeamWeeklyStats {
   rzCarries: number;
 }
 
+// Games/schedule data for home/away detection
+interface GameSchedule {
+  gameId: string;
+  season: number;
+  week: number;
+  homeTeam: string;
+  awayTeam: string;
+}
+
+// Contract data from OverTheCap
+interface ContractData {
+  player: string;
+  position: string;
+  team: string;
+  isActive: boolean;
+  yearSigned: number;
+  years: number;
+  totalValue: number;
+  apy: number;
+  guaranteed: number;
+  apyCapPct: number;
+  draftYear: number | null;
+  draftRound: number | null;
+  draftPick: number | null;
+  draftTeam: string | null;
+}
+
+// Injury report data
+interface InjuryReport {
+  season: number;
+  week: number;
+  playerName: string;
+  team: string;
+  position: string;
+  primaryInjury: string;
+  secondaryInjury: string;
+  status: string; // Out, Questionable, Doubtful
+  practiceStatus: string;
+}
+
+// Aggregated injury history for a player
+interface PlayerInjuryHistory {
+  playerName: string;
+  gamesPlayed: { [season: number]: number };
+  gamesMissed: { [season: number]: number };
+  injuries: Array<{
+    season: number;
+    week: number;
+    type: string;
+    status: string;
+  }>;
+  totalGamesPlayed: number;
+  totalGamesMissed: number;
+  availabilityRate: number;
+}
+
 // Cache for loaded data (in-memory for serverless compatibility)
 let playerStatsCache: WeeklyPlayerStats[] | null = null;
 let teamStatsCache: Map<string, TeamWeeklyStats[]> | null = null;
+let gamesCache: GameSchedule[] | null = null;
+let contractsCache: Map<string, ContractData> | null = null;
+let injuryReportsCache: InjuryReport[] | null = null;
 let csvDataCache: string | null = null;
+let gamesCsvCache: string | null = null;
+let contractsCsvCache: string | null = null;
+let injuriesCsvCache: string | null = null;
 let cacheTimestamp: number | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in-memory cache
+const GAMES_PER_SEASON = 17;
 
 /**
  * Check if running in serverless environment (read-only filesystem)
@@ -769,16 +832,448 @@ async function getTeamRank(
 }
 
 /**
+ * Load games/schedule data for home/away detection
+ */
+async function loadGames(): Promise<GameSchedule[]> {
+  if (gamesCache) return gamesCache;
+
+  const dataDir = getDataDir();
+  const localCsv = path.join(dataDir, 'games.csv');
+
+  try {
+    let csvData: string;
+
+    if (isServerless()) {
+      // Fetch from nflverse
+      if (gamesCsvCache) {
+        csvData = gamesCsvCache;
+      } else {
+        const response = await fetch(
+          'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv',
+          { headers: { 'User-Agent': 'fantasy-brain/1.0' }, redirect: 'follow' }
+        );
+        if (!response.ok) throw new Error(`Failed to fetch games.csv: ${response.status}`);
+        csvData = await response.text();
+        gamesCsvCache = csvData;
+      }
+    } else if (fs.existsSync(localCsv)) {
+      csvData = fs.readFileSync(localCsv, 'utf-8');
+    } else {
+      // Download if not cached
+      const response = await fetch(
+        'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv',
+        { headers: { 'User-Agent': 'fantasy-brain/1.0' }, redirect: 'follow' }
+      );
+      if (!response.ok) throw new Error(`Failed to fetch games.csv: ${response.status}`);
+      csvData = await response.text();
+      fs.writeFileSync(localCsv, csvData);
+    }
+
+    const rows = parseCSV(csvData);
+    gamesCache = rows.map(row => ({
+      gameId: row.game_id || '',
+      season: parseInt(row.season) || 0,
+      week: parseInt(row.week) || 0,
+      homeTeam: row.home_team || '',
+      awayTeam: row.away_team || '',
+    }));
+
+    return gamesCache;
+  } catch (error) {
+    console.error('Failed to load games data:', error);
+    return [];
+  }
+}
+
+/**
+ * Calculate home/away fantasy point splits for a player
+ * Returns PPR fantasy points averages at home vs away
+ */
+async function getHomeAwaySplits(
+  playerName: string,
+  seasons: number[] = [CURRENT_SEASON]
+): Promise<{
+  homeGames: number;
+  awayGames: number;
+  homePPG: number;
+  awayPPG: number;
+  splitPct: number; // Positive = better at home, negative = better away
+} | null> {
+  const [allStats, games] = await Promise.all([loadPlayerStats(), loadGames()]);
+
+  // Find player stats
+  const playerStats = allStats.filter(s =>
+    (s.playerName.toLowerCase() === playerName.toLowerCase() ||
+      s.playerName.toLowerCase().includes(playerName.toLowerCase())) &&
+    seasons.includes(CURRENT_SEASON) // Stats are only for current season
+  );
+
+  if (playerStats.length < 4) return null; // Need at least 4 games
+
+  // Build a lookup: (season, week, team) -> isHome
+  const gameLocationMap = new Map<string, boolean>();
+  for (const game of games) {
+    if (!seasons.includes(game.season)) continue;
+    // Home team key
+    gameLocationMap.set(`${game.season}-${game.week}-${game.homeTeam}`, true);
+    // Away team key
+    gameLocationMap.set(`${game.season}-${game.week}-${game.awayTeam}`, false);
+  }
+
+  // Calculate PPR points and split by home/away
+  const homePoints: number[] = [];
+  const awayPoints: number[] = [];
+
+  for (const stat of playerStats) {
+    // Calculate PPR fantasy points
+    const pprPoints =
+      (stat.passingYards || 0) * 0.04 +
+      (stat.passingTds || 0) * 4 +
+      (stat.interceptions || 0) * -2 +
+      (stat.rushingYards || 0) * 0.1 +
+      (stat.rushingTds || 0) * 6 +
+      (stat.receptions || 0) * 1 + // PPR
+      (stat.receivingYards || 0) * 0.1 +
+      (stat.receivingTds || 0) * 6;
+
+    const key = `${CURRENT_SEASON}-${stat.week}-${stat.team}`;
+    const isHome = gameLocationMap.get(key);
+
+    if (isHome === undefined) continue; // Skip if we can't determine location
+
+    if (isHome) {
+      homePoints.push(pprPoints);
+    } else {
+      awayPoints.push(pprPoints);
+    }
+  }
+
+  if (homePoints.length < 2 || awayPoints.length < 2) return null;
+
+  const homePPG = homePoints.reduce((a, b) => a + b, 0) / homePoints.length;
+  const awayPPG = awayPoints.reduce((a, b) => a + b, 0) / awayPoints.length;
+  const avgPPG = (homePPG + awayPPG) / 2;
+  const splitPct = avgPPG > 0 ? ((homePPG - awayPPG) / avgPPG) * 100 : 0;
+
+  return {
+    homeGames: homePoints.length,
+    awayGames: awayPoints.length,
+    homePPG: Math.round(homePPG * 10) / 10,
+    awayPPG: Math.round(awayPPG * 10) / 10,
+    splitPct: Math.round(splitPct * 10) / 10,
+  };
+}
+
+/**
+ * Load contract data from nflverse OverTheCap
+ */
+async function loadContracts(): Promise<Map<string, ContractData>> {
+  if (contractsCache) return contractsCache;
+
+  const dataDir = getDataDir();
+  const localCsv = path.join(dataDir, 'contracts.csv');
+  const CONTRACTS_URL = 'https://github.com/nflverse/nflverse-data/releases/download/contracts/historical_contracts.csv.gz';
+
+  try {
+    let csvData: string;
+
+    if (isServerless()) {
+      if (contractsCsvCache) {
+        csvData = contractsCsvCache;
+      } else {
+        // Fetch gzipped file
+        const response = await fetch(CONTRACTS_URL, {
+          headers: { 'User-Agent': 'fantasy-brain/1.0' },
+          redirect: 'follow',
+        });
+        if (!response.ok) throw new Error(`Failed to fetch contracts: ${response.status}`);
+
+        // Decompress gzip
+        const buffer = await response.arrayBuffer();
+        const { gunzipSync } = await import('zlib');
+        csvData = gunzipSync(Buffer.from(buffer)).toString('utf-8');
+        contractsCsvCache = csvData;
+      }
+    } else if (fs.existsSync(localCsv)) {
+      csvData = fs.readFileSync(localCsv, 'utf-8');
+    } else {
+      // Download and decompress
+      const response = await fetch(CONTRACTS_URL, {
+        headers: { 'User-Agent': 'fantasy-brain/1.0' },
+        redirect: 'follow',
+      });
+      if (!response.ok) throw new Error(`Failed to fetch contracts: ${response.status}`);
+
+      const buffer = await response.arrayBuffer();
+      const { gunzipSync } = await import('zlib');
+      csvData = gunzipSync(Buffer.from(buffer)).toString('utf-8');
+      fs.writeFileSync(localCsv, csvData);
+    }
+
+    const rows = parseCSV(csvData);
+    contractsCache = new Map();
+
+    // Only keep active contracts, keyed by player name (lowercase)
+    for (const row of rows) {
+      if (row.is_active !== 'TRUE') continue;
+
+      const playerName = row.player || '';
+      const key = playerName.toLowerCase();
+
+      // Skip if we already have this player (keep first/most recent active contract)
+      if (contractsCache.has(key)) continue;
+
+      contractsCache.set(key, {
+        player: playerName,
+        position: row.position || '',
+        team: row.team || '',
+        isActive: true,
+        yearSigned: parseInt(row.year_signed) || 0,
+        years: parseInt(row.years) || 0,
+        totalValue: parseInt(row.value) || 0,
+        apy: parseInt(row.apy) || 0,
+        guaranteed: parseInt(row.guaranteed) || 0,
+        apyCapPct: parseFloat(row.apy_cap_pct) || 0,
+        draftYear: row.draft_year && row.draft_year !== 'NA' ? parseInt(row.draft_year) : null,
+        draftRound: row.draft_round && row.draft_round !== 'NA' ? parseInt(row.draft_round) : null,
+        draftPick: row.draft_overall && row.draft_overall !== 'NA' ? parseInt(row.draft_overall) : null,
+        draftTeam: row.draft_team && row.draft_team !== 'NA' ? row.draft_team : null,
+      });
+    }
+
+    console.log(`Loaded ${contractsCache.size} active player contracts`);
+    return contractsCache;
+  } catch (error) {
+    console.error('Failed to load contracts:', error);
+    return new Map();
+  }
+}
+
+/**
+ * Get contract data for a specific player
+ */
+async function getPlayerContract(playerName: string): Promise<ContractData | null> {
+  const contracts = await loadContracts();
+  return contracts.get(playerName.toLowerCase()) || null;
+}
+
+/**
+ * Calculate years remaining on contract
+ */
+function getContractYearsRemaining(contract: ContractData): number {
+  const currentYear = new Date().getFullYear();
+  const endYear = contract.yearSigned + contract.years;
+  return Math.max(0, endYear - currentYear);
+}
+
+/**
+ * Determine if player is on rookie deal
+ */
+function isRookieDeal(contract: ContractData): boolean {
+  if (!contract.draftYear) return false;
+  // Rookie deals are 4-5 years (5th year option for 1st rounders)
+  const maxRookieYears = contract.draftRound === 1 ? 5 : 4;
+  const currentYear = new Date().getFullYear();
+  return (currentYear - contract.draftYear) <= maxRookieYears;
+}
+
+/**
+ * Load injury reports from nflverse (2022-2024)
+ */
+async function loadInjuryReports(seasons: number[] = [2022, 2023, 2024]): Promise<InjuryReport[]> {
+  if (injuryReportsCache) return injuryReportsCache;
+
+  const dataDir = getDataDir();
+  const allReports: InjuryReport[] = [];
+
+  for (const season of seasons) {
+    try {
+      let csvData: string;
+      const localCsv = path.join(dataDir, `injuries_${season}.csv`);
+      const url = `https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_${season}.csv`;
+
+      if (isServerless()) {
+        const response = await fetch(url, {
+          headers: { 'User-Agent': 'fantasy-brain/1.0' },
+          redirect: 'follow',
+        });
+        if (!response.ok) continue;
+        csvData = await response.text();
+      } else if (fs.existsSync(localCsv)) {
+        csvData = fs.readFileSync(localCsv, 'utf-8');
+      } else {
+        const response = await fetch(url, {
+          headers: { 'User-Agent': 'fantasy-brain/1.0' },
+          redirect: 'follow',
+        });
+        if (!response.ok) continue;
+        csvData = await response.text();
+        fs.writeFileSync(localCsv, csvData);
+      }
+
+      const rows = parseCSV(csvData);
+      for (const row of rows) {
+        // Skip if no meaningful injury or resting
+        if (row.report_status === '' && row.practice_status === '') continue;
+
+        allReports.push({
+          season: parseInt(row.season) || 0,
+          week: parseInt(row.week) || 0,
+          playerName: row.full_name || '',
+          team: row.team || '',
+          position: row.position || '',
+          primaryInjury: row.report_primary_injury || row.practice_primary_injury || '',
+          secondaryInjury: row.report_secondary_injury || row.practice_secondary_injury || '',
+          status: row.report_status || '',
+          practiceStatus: row.practice_status || '',
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to load injuries for ${season}:`, error);
+    }
+  }
+
+  injuryReportsCache = allReports;
+  console.log(`Loaded ${allReports.length} injury reports from ${seasons.join(', ')}`);
+  return allReports;
+}
+
+/**
+ * Get injury history for a specific player
+ * Returns games played/missed per season and injury types
+ */
+async function getPlayerInjuryHistory(
+  playerName: string,
+  seasons: number[] = [2022, 2023, 2024]
+): Promise<PlayerInjuryHistory | null> {
+  const reports = await loadInjuryReports(seasons);
+
+  // Find all reports for this player
+  const playerReports = reports.filter(r =>
+    r.playerName.toLowerCase() === playerName.toLowerCase()
+  );
+
+  if (playerReports.length === 0) return null;
+
+  // Track games missed per season (weeks with "Out" status)
+  const gamesMissed: { [season: number]: Set<number> } = {};
+  const injuries: PlayerInjuryHistory['injuries'] = [];
+
+  for (const season of seasons) {
+    gamesMissed[season] = new Set();
+  }
+
+  for (const report of playerReports) {
+    // Count as missed if status is "Out"
+    if (report.status === 'Out') {
+      gamesMissed[report.season]?.add(report.week);
+    }
+
+    // Track injury types (dedupe by season+week)
+    if (report.primaryInjury && report.primaryInjury !== 'Not injury related - resting player') {
+      injuries.push({
+        season: report.season,
+        week: report.week,
+        type: report.primaryInjury,
+        status: report.status,
+      });
+    }
+  }
+
+  // Calculate games played (17 - missed, capped at 0)
+  const gamesPlayed: { [season: number]: number } = {};
+  let totalPlayed = 0;
+  let totalMissed = 0;
+
+  for (const season of seasons) {
+    const missed = gamesMissed[season]?.size || 0;
+    const played = Math.max(0, GAMES_PER_SEASON - missed);
+    gamesPlayed[season] = played;
+    totalPlayed += played;
+    totalMissed += missed;
+  }
+
+  const totalPossible = seasons.length * GAMES_PER_SEASON;
+  const availabilityRate = totalPossible > 0
+    ? Math.round((totalPlayed / totalPossible) * 100)
+    : 100;
+
+  // Dedupe injuries by season+week
+  const uniqueInjuries = injuries.filter((inj, idx, arr) =>
+    arr.findIndex(i => i.season === inj.season && i.week === inj.week) === idx
+  );
+
+  return {
+    playerName,
+    gamesPlayed,
+    gamesMissed: Object.fromEntries(
+      Object.entries(gamesMissed).map(([s, set]) => [s, set.size])
+    ),
+    injuries: uniqueInjuries,
+    totalGamesPlayed: totalPlayed,
+    totalGamesMissed: totalMissed,
+    availabilityRate,
+  };
+}
+
+/**
+ * Categorize injury type into our standard categories
+ */
+function categorizeInjury(injuryType: string): string {
+  const injury = injuryType.toLowerCase();
+
+  if (injury.includes('acl')) return 'knee_acl';
+  if (injury.includes('knee') || injury.includes('mcl') || injury.includes('meniscus')) return 'knee_other';
+  if (injury.includes('concussion') || injury.includes('head')) return 'concussion';
+  if (injury.includes('ankle') || injury.includes('foot') || injury.includes('achilles') || injury.includes('toe')) return 'ankle_foot';
+  if (injury.includes('hamstring') || injury.includes('quad') || injury.includes('groin') || injury.includes('calf') || injury.includes('thigh')) return 'soft_tissue';
+  if (injury.includes('back') || injury.includes('spine')) return 'back';
+  if (injury.includes('shoulder')) return 'shoulder';
+  if (injury.includes('wrist') || injury.includes('hand') || injury.includes('finger') || injury.includes('thumb')) return 'wrist_hand';
+  if (injury.includes('rib') || injury.includes('chest')) return 'ribs';
+  if (injury.includes('illness') || injury.includes('flu') || injury.includes('covid')) return 'illness';
+
+  return 'other';
+}
+
+/**
+ * Get injury type counts for a player
+ */
+async function getInjuryTypeCounts(
+  playerName: string
+): Promise<Map<string, number> | null> {
+  const history = await getPlayerInjuryHistory(playerName);
+  if (!history) return null;
+
+  const counts = new Map<string, number>();
+  for (const injury of history.injuries) {
+    const category = categorizeInjury(injury.type);
+    counts.set(category, (counts.get(category) || 0) + 1);
+  }
+
+  return counts;
+}
+
+/**
  * Clear cached data (useful for refreshing)
  */
 function clearCache(): void {
   playerStatsCache = null;
   teamStatsCache = null;
+  gamesCache = null;
+  gamesCsvCache = null;
+  contractsCache = null;
+  contractsCsvCache = null;
+  injuryReportsCache = null;
+  injuriesCsvCache = null;
   _dataDir = null; // Also reset data dir cache
 }
 
 export const nflfastr = {
   loadPlayerStats,
+  loadGames,
+  loadContracts,
+  loadInjuryReports,
   getPlayerRecentStats,
   getTargetShare,
   getCarryShare,
@@ -787,9 +1282,17 @@ export const nflfastr = {
   getPerformanceVsTeam,
   getEmergingReceivers,
   getRedZoneUsage,
+  getHomeAwaySplits,
+  getPlayerContract,
+  getContractYearsRemaining,
+  isRookieDeal,
+  getPlayerInjuryHistory,
+  getInjuryTypeCounts,
+  categorizeInjury,
   clearCache,
   getDataDir,
   CURRENT_SEASON,
+  GAMES_PER_SEASON,
 };
 
 export default nflfastr;
